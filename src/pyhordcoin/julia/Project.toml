@@ -1,0 +1,5 @@
+[deps]
+HORDCOIN = "5495aede-444c-4b33-a3d8-b01a3ffd757a"
+
+[compat]
+HORDCOIN = "1.1.0"
