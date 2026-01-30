@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from juliacall import Main as jl, convert
+from juliacall import Main as jl, convert, JuliaError
 import numpy as np
 from pathlib import Path
 
@@ -53,12 +53,21 @@ class AbstractOptimizer:
         After it has been called, the initd flag of the class is set to True.
         """
         if not cls.initd:
-            jl.seval(cls.init_string)
+            try:
+                jl.seval(f"using {cls.init_string}")
+            except JuliaError:
+                jl.seval(
+                    f"""
+                    import Pkg
+                    Pkg.add("{cls.init_string}")
+                    using {cls.init_string}
+                    """
+                )
             cls.initd = True
 
 
 class SCS(AbstractOptimizer):
-    init_string = "using SCS"
+    init_string = "SCS"
 
     def __init__(self) -> None:
         """
@@ -71,7 +80,7 @@ class SCS(AbstractOptimizer):
 
 
 class Mosek(AbstractOptimizer):
-    init_string = "using MosekTools"
+    init_string = "MosekTools"
 
     def __init__(self) -> None:
         """
