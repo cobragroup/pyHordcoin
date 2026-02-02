@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyHordcoin"
-version = "1.1.0"
+version = "1.1.7"
 # dynamic = ["version"]
 authors = [
   { name="Giulio Tani Raffaelli", email="tani@cs.cas.cz" },
@@ -20,7 +20,7 @@ classifiers = [
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 dependencies = [
-    "numpy>1.26.0",
+    "numpy>=2.0",
     "juliacall>0.9.20",
 ]
 
