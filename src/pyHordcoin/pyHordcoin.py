@@ -228,8 +228,8 @@ def _format_precalculated_entropies(precalculated_entropies, dimension):
     for k, v in precalculated_entropies.items():
         assert len(k) == len(set(k)), f"Repeated dimension index in key ({k})."
         for k1 in k:
-            assert 0 < k <= dimension, f"Invalid dimension index {k1} in key ({k})."
-        assert np.issubdtype(v, np.floating)
+            assert 0 < k1 <= dimension, f"Invalid dimension index {k1} in key ({k})."
+        assert isinstance(v, float) or np.issubdtype(v, np.floating)
         _precalculated_entropies[convert(jl.Array[jl.Int64], k)] = v
 
     return convert(jl.Dict, _precalculated_entropies)
@@ -237,10 +237,10 @@ def _format_precalculated_entropies(precalculated_entropies, dimension):
 
 def ConnectedInformation(
     distribution: np.ndarray,
-    orders: np.ndarray | int,
+    orders: np.ndarray | list[int] | int,
     method: OptimisationMethod | None = None,
-    precalculated_entropies: None = None,
-):
+    precalculated_entropies: None | dict[tuple[int, ...], float] = None,
+) -> dict[int, float]:
     """
     Computes connected information for given joined probability and multiple `orders`. Optional argument `method`
     specifies which method to use for optimisation. Default is `Cone()`. Preferred when computing multiple connected
@@ -294,25 +294,27 @@ def ConnectedInformation(
     else:
         extras = {}
 
-    if isinstance(orders, np.ndarray):
-        _orders = convert(jl.Vector, orders.astype(int))
+    if isinstance(orders, (np.ndarray, list)):
+        _orders = convert(jl.Vector, np.array(orders).astype(int))
     else:
         _orders = convert(jl.Int64, orders)
 
     CI = jl.connected_information(_distribution, _orders, method.method, **extras)
 
-    if hasattr(CI, "__len__"):
+    if isinstance(method, EntropyMethod):
         return dict(CI[0])
+    elif isinstance(orders, int):
+        return {orders: float(CI)}
     else:
-        return CI
+        return dict(CI)
 
 
 def MaximiseEntropy(
     distribution: np.ndarray,
     order: int,
     method: OptimisationMethod | None = None,
-    precalculated_entropies: None = None,
-):
+    precalculated_entropies: None | dict[tuple[int, ...], float] = None,
+) -> tuple[float, np.ndarray | None]:
     """
     Computes the maximum entropy of a distribution (not a probability distribution) with fixed entropy of marginals of size `order`.
 
@@ -331,6 +333,8 @@ def MaximiseEntropy(
     -------
     float
         Computed maximum entropy.
+    np.ndarray
+        Maximum entropy distribution if `method` is a `MarginalMethod` else None.
 
     Raises
     ------
@@ -339,10 +343,6 @@ def MaximiseEntropy(
     NotImplementedError
         If `precalculated_entropies` is passed (not implemented yet).
     """
-    if precalculated_entropies is not None:
-        raise NotImplementedError(
-            "Passing precalculated entropies is not implemented yet."
-        )
     dimension = len(distribution.shape)
     if isinstance(method, EntropyMethod):
         _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
@@ -367,15 +367,19 @@ def MaximiseEntropy(
 
     _order = convert(jl.Int64, order)
 
+    if precalculated_entropies is not None and isinstance(method, EntropyMethod):
+        extras = {
+            "precalculated_entropies": _format_precalculated_entropies(
+                precalculated_entropies, dimension
+            )
+        }
+    else:
+        extras = {}
+
     if isinstance(method, EntropyMethod):
         return (
             jl.max_ent_fixed_ent_unnormalized(
-                _distribution,
-                _order,
-                method.method,
-                precalculated_entropies=_format_precalculated_entropies(
-                    precalculated_entropies, dimension
-                ),
+                _distribution, _order, method.method, **extras
             ),
             None,
         )

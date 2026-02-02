@@ -1,4 +1,4 @@
-import pyhordcoin as hc
+import pyHordcoin as hc
 
 
 def test_version():
