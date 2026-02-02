@@ -3,13 +3,13 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyhordcoin"
+name = "pyHordcoin"
 version = "1.1.0"
 # dynamic = ["version"]
 authors = [
   { name="Giulio Tani Raffaelli", email="tani@cs.cas.cz" },
 ]
-description = "A python interface for HORDCOIN."
+description = "A python interface for Hordcoin."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
@@ -26,8 +26,8 @@ dependencies = [
 
 
 [project.urls]
-Homepage = "https://github.com/cobragroup/HORDCOIN"
-Issues = "https://github.com/cobragroup/HORDCOIN/issues"
+Homepage = "https://github.com/cobragroup/pyHordcoin"
+Issues = "https://github.com/cobragroup/pyHordcoin/issues"
 
 
 [project.optional-dependencies]

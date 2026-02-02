@@ -184,11 +184,11 @@ git-tree-sha1 = "e94f84da9af7ce9c6be049e9067e511e17ff89ec"
 uuid = "0234f1f7-429e-5d53-9886-15a909be8d59"
 version = "1.14.6+0"
 
-[[deps.HORDCOIN]]
+[[deps.Hordcoin]]
 deps = ["CDDLib", "Combinatorics", "Ipopt", "JuMP", "MAT", "MadNLP", "MathOptInterface", "Mosek", "MosekTools", "Polyhedra", "ProgressMeter", "SCS", "Statistics"]
 git-tree-sha1 = "9b3420d2e69d63c49df494789b11728bdb86cada"
 repo-rev = "main"
-repo-url = "https://github.com/cobragroup/HORDCOIN.git"
+repo-url = "https://github.com/cobragroup/Hordcoin.jl.git"
 uuid = "5495aede-444c-4b33-a3d8-b01a3ffd757a"
 version = "1.1.0"
 

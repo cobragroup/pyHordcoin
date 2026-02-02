@@ -15,11 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-pyHORDCOIN
+pyHordcoin
 
-Python interface to the HORDCOIN Julia package for Connected Information.
+Python interface to the Hordcoin Julia package for Connected Information.
 
-This package provides a Python interface to the HORDCOIN Julia package.
+This package provides a Python interface to the Hordcoin Julia package.
 The package allows the computation of the Connected Information, and the
 maximisation of the entropy of discrete distributions given a fixed marginal
 distribution or entropy up to a chosen order.
@@ -38,7 +38,7 @@ The following functions are available:
 - `Mosek`: implements the Mosek optimiser.
 
 """
-from .pyhordcoin import (
+from .pyHordcoin import (
     ConnectedInformation,
     MaximiseEntropy,
     RawPolymatroid,

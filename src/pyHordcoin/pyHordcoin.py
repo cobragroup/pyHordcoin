@@ -27,7 +27,7 @@ def _init_julia_env():
     Pkg.instantiate()
     """
     )
-    jl.seval("using HORDCOIN")
+    jl.seval("using Hordcoin")
 
 
 _init_julia_env()
@@ -208,10 +208,23 @@ class Ipfp(MarginalMethod):
         self.method = jl.Ipfp(convert(jl.Int64, iterations))
 
 
+def _format_precalculated_entropies(precalculated_entropies, dimension):
+    _precalculated_entropies = {}
+    for k, v in precalculated_entropies.items():
+        assert len(k) == len(set(k)), f"Repeated dimension index in key ({k})."
+        for k1 in k:
+            assert 0 < k <= dimension, f"Invalid dimension index {k1} in key ({k})."
+        assert np.issubdtype(v, np.floating)
+        _precalculated_entropies[convert(jl.Array[jl.Int64], k)] = v
+
+    return convert(jl.Dict, _precalculated_entropies)
+
+
 def ConnectedInformation(
     distribution: np.ndarray,
     orders: np.ndarray | int,
     method: OptimisationMethod | None = None,
+    precalculated_entropies: None = None,
 ):
     """
     Computes connected information for given joined probability and multiple `orders`. Optional argument `method`
@@ -232,30 +245,23 @@ def ConnectedInformation(
     Dict{int, float}
         Computed connected informations.
     """
+    dimension = len(distribution.shape)
     if isinstance(method, MarginalMethod) or (
         isinstance(method, RawPolymatroid)
         and np.issubdtype(distribution.dtype, np.floating)
     ):
-        _distribution = convert(
-            jl.Array[jl.Float64, len(distribution.shape)], distribution
-        )
+        _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
     elif isinstance(method, EntropyMethod):
-        _distribution = convert(
-            jl.Array[jl.Int64, len(distribution.shape)], distribution
-        )
+        _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
     elif method is None:
         if np.issubdtype(distribution.dtype, np.integer):
-            _distribution = convert(
-                jl.Array[jl.Int64, len(distribution.shape)], distribution
-            )
+            _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
             method = RawPolymatroid()
         elif (
             np.issubdtype(distribution.dtype, np.floating)
             and not np.iscomplex(distribution).any()
         ):
-            _distribution = convert(
-                jl.Array[jl.Float64, len(distribution.shape)], distribution
-            )
+            _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
             method = Ipfp()
         else:
             raise ValueError(
@@ -264,16 +270,21 @@ def ConnectedInformation(
     else:
         raise ValueError(f"Unrecognise method of type '{type(method)}'")
 
+    if precalculated_entropies is not None and isinstance(method, EntropyMethod):
+        extras = {
+            "precalculated_entropies": _format_precalculated_entropies(
+                precalculated_entropies, dimension
+            )
+        }
+    else:
+        extras = {}
+
     if isinstance(orders, np.ndarray):
         _orders = convert(jl.Vector, orders.astype(int))
     else:
         _orders = convert(jl.Int64, orders)
 
-    CI = jl.connected_information(
-        _distribution,
-        _orders,
-        method.method,
-    )
+    CI = jl.connected_information(_distribution, _orders, method.method, **extras)
 
     if hasattr(CI, "__len__"):
         return dict(CI[0])
@@ -317,28 +328,20 @@ def MaximiseEntropy(
         raise NotImplementedError(
             "Passing precalculated entropies is not implemented yet."
         )
-
+    dimension = len(distribution.shape)
     if isinstance(method, EntropyMethod):
-        _distribution = convert(
-            jl.Array[jl.Int64, len(distribution.shape)], distribution
-        )
+        _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
     elif isinstance(method, MarginalMethod):
-        _distribution = convert(
-            jl.Array[jl.Float64, len(distribution.shape)], distribution
-        )
+        _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
     elif method is None:
         if np.issubdtype(distribution.dtype, np.integer):
-            _distribution = convert(
-                jl.Array[jl.Int64, len(distribution.shape)], distribution
-            )
+            _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
             method = RawPolymatroid()
         elif (
             np.issubdtype(distribution.dtype, np.floating)
             and not np.iscomplex(distribution).any()
         ):
-            _distribution = convert(
-                jl.Array[jl.Float64, len(distribution.shape)], distribution
-            )
+            _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
             method = Ipfp()
         else:
             raise ValueError(
@@ -355,6 +358,9 @@ def MaximiseEntropy(
                 _distribution,
                 _order,
                 method.method,
+                precalculated_entropies=_format_precalculated_entropies(
+                    precalculated_entropies, dimension
+                ),
             ),
             None,
         )

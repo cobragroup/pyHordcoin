@@ -1,6 +1,6 @@
-# pyHORDCOIN - Python interface for HORDCOIN
+# pyHordcoin - Python interface for Hordcoin
 
-This is a python interface for the Julia package HORDCOIN which provides methods for finding probability distributions with maximal Shannon entropy given a fixed marginal distribution or entropy up to a chosen order, and to compute the Connected Information. 
+This is a python interface for the Julia package Hordcoin which provides methods for finding probability distributions with maximal Shannon entropy given a fixed marginal distribution or entropy up to a chosen order, and to compute the Connected Information. 
 
 # Installing
 
@@ -28,7 +28,7 @@ Installation is easy, just:
 The first time you import the package it will take some time to install the Julia dependencies (and possibly Julia itself). From the second import on it's much faster, although the import of Julia still takes some time. This will be repaid during the maximisation of the entropies.
 
 # Reading the documentation
-If I didn't upload it somewhere else, from the pyHORDCOIN folder run:
+If I didn't upload it somewhere else, from the pyHordcoin folder run:
 ```bash
 pip install -r docs/requirements.txt
 ```
