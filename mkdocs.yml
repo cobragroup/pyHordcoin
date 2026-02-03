@@ -1,4 +1,4 @@
-site_name: HORDCOIN Documentation
+site_name: pyHordcoin Documentation
 
 theme:
   name: material
@@ -17,3 +17,5 @@ nav:
   - API Reference: 
     - Intro: api/intro.md
     - ConnectedInformation: api/ConnectedInformation.md
+    - MaximiseEntropy: api/MaximiseEntropy.md
+    - DistributionEntropy: api/DistributionEntropy.md

@@ -1,5 +1,5 @@
 # Modules
-::: pyhordcoin
+::: pyHordcoin
     options:
       heading_level: 1
       show_source: true
