@@ -2,6 +2,7 @@ import pyHordcoin as hc
 import numpy as np
 from itertools import combinations
 import pytest
+from juliacall import JuliaError
 
 
 def test_ConnectedInformation_discrete():
@@ -37,6 +38,13 @@ def test_ConnectedInformation_bad_method():
     A = np.random.randint(1000, size=[2, 2, 2])
     with pytest.raises(ValueError):
         hc.ConnectedInformation(A, 2, hc.RawPolymatroid().method)
+
+
+def test_ConnectedInformation_continuous_GPolymatroid():
+    A = np.random.randint(1000, size=[2, 2, 2]).astype(np.float64)
+    A /= A.sum()
+    with pytest.raises(JuliaError):
+        hc.ConnectedInformation(A, 2, hc.GPolymatroid())
 
 
 def test_ConnectedInformation_continuous_multiple_orders():
