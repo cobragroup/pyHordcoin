@@ -41,6 +41,7 @@ The following functions are available:
 from .pyHordcoin import (
     ConnectedInformation,
     MaximiseEntropy,
+    DistributionEntropy,
     RawPolymatroid,
     GPolymatroid,
     Ipfp,

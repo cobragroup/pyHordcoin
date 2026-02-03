@@ -1,4 +1,4 @@
-# Copyright 2026 Giulio Tani Raffaelli
+# Copyright (c) 2026 Giulio Tani Raffaelli
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -390,3 +390,32 @@ def MaximiseEntropy(
             method=method.method,
         )
         return ME.entropy, np.array(ME.joined_probability)
+
+
+def DistributionEntropy(distribution: np.ndarray) -> float:
+    """
+    Compute the information entropy of a discrete probability distribution.
+
+    Parameters
+    ----------
+    distribution : np.ndarray
+        Discrete probability distribution (not necessarily normalized).
+
+    Returns
+    -------
+    float
+        Information entropy of the probability distribution in bits.
+
+    Notes
+    ----
+    The entropy is computed as the negative sum of each probability value
+    multiplied by its logarithm (base 2).
+
+    Examples
+    --------
+    >>> DistributionEntropy([0.1, 0.4, 0.5])
+    1.360964047443681
+    """
+    dimension = len(distribution.shape)
+    _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
+    return jl.distribution_entropy(_distribution)
