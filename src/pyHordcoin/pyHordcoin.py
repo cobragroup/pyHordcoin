@@ -1,4 +1,7 @@
-# Copyright (c) 2026 Giulio Tani Raffaelli
+# Copyright (c) 2026 Giulio Tani Raffaelli (Institute of Computer Science, Czech Academy of Sciences)
+# Copyright (c) 2026 Jakub Kislinger
+# Copyright (c) 2026 Jaroslav Hlinka (Institute of Computer Science, Czech Academy of Sciences)
+# Copyright (c) 2026 Tomáš Kroupa (Czech Technical University)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from juliacall import Main as jl, convert, JuliaError
+from juliacall import Main as jl, convert, JuliaError, Pkg
 import numpy as np
 from pathlib import Path
 import os
@@ -21,28 +24,15 @@ import os
 
 def _init_julia_env():
     env = Path(__file__).parent / "julia"
-    jl.seval("import Pkg")
     if not os.path.isdir(env):
         os.mkdir(env)
-
         with open(env / "Project.toml", "w") as f:
             f.write('[deps]\nHordcoin = "5495aede-444c-4b33-a3d8-b01a3ffd757a"\n')
 
-        with open(env / "Manifest.toml", "w") as f:
-            f.write(
-                'julia_version = "1.11.8"\nmanifest_format = "2.0"\n[[deps.Hordcoin]]\nrepo-rev = "main"\nrepo-url = "https://github.com/cobragroup/Hordcoin.jl.git"\nuuid = "5495aede-444c-4b33-a3d8-b01a3ffd757a"\nversion = "1.1.0"\n'
-            )
-        jl.seval(
-            f"""Pkg.activate(raw"{env}")
-                 Pkg.resolve()"""
-        )
-    jl.seval(
-        f"""
-    Pkg.activate(raw"{env}")
+    Pkg.activate(str(env))
     Pkg.instantiate()
-    """
-    )
     jl.seval("using Hordcoin")
+    print("Julia environment initialized.")
 
 
 _init_julia_env()
