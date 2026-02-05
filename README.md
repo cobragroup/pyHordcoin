@@ -17,11 +17,11 @@ Installation is easy, just:
 1. install the package:
     1. if you only want to use its components for your measures:
         ```bash
-        pip install .
+        pip install pyHordcoin
         ```
-    1. if you want to contribute to the development: 
+    1. if you want to contribute to the development download the sources and then, from the unpacked folder, run: 
         ```bash
-        pip install .[dev]
+        pip install -e .[dev]
         ```
 
 ## Running
@@ -157,7 +157,7 @@ The `Gradient` method is the slowest and may fail during execution due to limita
 When computing with fixed entropies and a small number of samples, the recommended method is the `GPolymatroid` with `Mosek`. When the distribution is sampled enough, you can use `RawPolymatroid` to estimate the entropy with the plug-in estimator. More information can be found in the paper.
 
 # Reading the documentation
-If I didn't upload it somewhere else, from the pyHordcoin folder run:
+If I didn't upload it somewhere else, from the pyHordcoin folder *in the cloned repository* run:
 ```bash
 pip install -r docs/requirements.txt
 ```
@@ -167,7 +167,7 @@ Now you can read the documentation running:
 ```bash
 mkdocs serve
 ```
-And opening your browser at: http://127.0.0.1:8000/.
+And opening your browser at: http://127.0.0.1:8000/. Notice however that there isn't anything you can't find already in the sources.
 
 
 ## How to cite
