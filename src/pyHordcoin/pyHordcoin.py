@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from juliacall import Main as jl, convert, JuliaError, Pkg
+from juliacall import Main as jl, convert, JuliaError
 import numpy as np
 from pathlib import Path
 import os
@@ -29,8 +29,9 @@ def _init_julia_env():
         with open(env / "Project.toml", "w") as f:
             f.write('[deps]\nHordcoin = "5495aede-444c-4b33-a3d8-b01a3ffd757a"\n')
 
-    Pkg.activate(str(env))
-    Pkg.instantiate()
+    jl.seval("using Pkg")
+    jl.seval('Pkg.activate("{}")'.format(str(env)))
+    jl.seval("Pkg.instantiate()")
     jl.seval("using Hordcoin")
     print("Julia environment initialized.")
 
@@ -61,13 +62,11 @@ class AbstractOptimizer:
             try:
                 jl.seval(f"using {cls.init_string}")
             except JuliaError:
-                jl.seval(
-                    f"""
+                jl.seval(f"""
                     import Pkg
                     Pkg.add("{cls.init_string}")
                     using {cls.init_string}
-                    """
-                )
+                    """)
             cls.initd = True
 
 
