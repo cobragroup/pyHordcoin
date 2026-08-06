@@ -18,3 +18,5 @@ def test_version():
 def test_import_submodules():
     assert hc.SCS()
     assert hc.Mosek()
+    assert hc.Ipopt()
+    assert hc.MadNLP()

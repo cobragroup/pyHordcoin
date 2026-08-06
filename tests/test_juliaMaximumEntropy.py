@@ -20,6 +20,11 @@ def test_MaximiseEntropy_discrete_explicit():
     assert isinstance(hc.MaximiseEntropy(A, 2, hc.GPolymatroid())[0], float)
 
 
+def test_MaximiseEntropy_discrete_Direct():
+    A = np.random.randint(1000, size=[2, 2, 2])
+    assert isinstance(hc.MaximiseEntropy(A, 2, hc.Direct(hc.Ipopt()))[0], float)
+
+
 def test_MaximiseEntropy_continuous_explicit():
     A = np.random.randint(1000, size=[2, 2, 2]).astype(np.float64)
     A /= A.sum()

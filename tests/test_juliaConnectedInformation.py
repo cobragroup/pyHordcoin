@@ -27,6 +27,19 @@ def test_ConnectedInformation_continuous_explicit():
     assert isinstance(hc.ConnectedInformation(A, 2, hc.Ipfp())[2], float)
 
 
+# def test_ConnectedInformation_continuous_Direct():
+#     A = np.random.randint(1000, size=[2, 2, 2]).astype(np.float64)
+#     A /= A.sum()
+#     assert isinstance(hc.ConnectedInformation(A, 2, hc.Direct(hc.Ipopt()))[2], float)
+#     assert isinstance(hc.ConnectedInformation(A, 2, hc.Direct(hc.MadNLP()))[2], float)
+
+
+def test_ConnectedInformation_discrete_Direct():
+    A = np.random.randint(1000, size=[2, 2, 2])
+    with pytest.raises(NotImplementedError):
+        hc.ConnectedInformation(A, 2, hc.Direct())
+
+
 def test_ConnectedInformation_imaginary():
     A = np.random.randint(1000, size=[2, 2, 2])
     A = A + 1j
