@@ -66,7 +66,7 @@ def test_connected_information_discrete_precalculated():
         for a in combinations(range(3), i):
             m = tuple(set(range(3)) - set(a))
             tmp = A.sum(a)
-            k = tuple(b + 1 for b in m)
+            k = tuple(b + 1 for b in a)
             marginal_entropies[k] = -(tmp * np.log2(tmp)).sum()
     assert np.isclose(
         hc.connected_information(A, 2, hc.RawPolymatroid())[0][2],

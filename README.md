@@ -38,7 +38,7 @@ The input data must satisfy the following requirements:
 
 ### Connected Information
 
-The main function of the package is `ConnectedInformation` that uses the the maximum entropy with constraints at different orders to compute the Connected Information. It takes as input the probability distribution or the (non-normalised) counts, along with the desired orders of Connected Information and the optimisation method.
+The main function of the package is `connected_information` that uses the the maximum entropy with constraints at different orders to compute the Connected Information. It takes as input the probability distribution or the (non-normalised) counts, along with the desired orders of Connected Information and the optimisation method.
 
 When computing multiple Connected Information values for the same probability distribution, it is possible to pass the sizes (desired orders) as an array. This will speed up the process by chaining the computations, thereby reducing the number of maximizations.
 
@@ -53,38 +53,40 @@ It is possible to have complete control on the kind of constraints by passing a 
 It's possible to pass a precomputed dictionary of entropies to speed up the computation when using entropic constraints. See note below on the structure of this dictionary.
 
 
-The basic usage of `ConnectedInformation` is the following:
+The basic usage of `connected_information` is the following:
 ```Python
 import pyHordcoin as hc
 import numpy as np
 
 counts=np.array([[[1, 2],[3, 4]], [[4, 2], [1, 3]]], dtype=int)
-hc.ConnectedInformation(counts, 2)
+hc.connected_information(counts, 2)
 ```
-Which will optimise (maximize entropy) constraining the marginal entropies (up to order 2) and should give a result similar to `{2: 0.09310598013744764}`
+Which will optimise (maximize entropy) constraining the marginal entropies (up to order 2) and should give a result similar to `({2: 0.09310598013744764}, None)`. The second element of the tuple is `None` by default. When calling `connected_information` with the argument `full_output=True` the second element contains a dictionary with information about the maximally entropic distribution at all orders computed. In case of fixed marginal constraints, each element is the optimized distribution at that order. In case of fixed marginal entropies, each element is the entropy vector that maximises the entropy at that order. This information can be passed on to subsequent calls of functions from this package or used for further analysis.
+
+**Warning**: for high dimensional probability distribution using `full_output=True` can consume a lot of memory ($\sim k^D$ for fixed marginal constraints, $k$ states and $D$ dimensions, $\sim2^D$ for fixed marginal entropies).
 
 Notably, the following operations all give the same results:
 ```Python
-hc.ConnectedInformation(counts, [2])
-hc.ConnectedInformation(counts, 2, hc.RawPolymatroid())
+hc.connected_information(counts, [2])
+hc.connected_information(counts, 2, hc.RawPolymatroid())
 
 hc.frequencies = counts.astype(float) ./ sum(counts)
-hc.ConnectedInformation(frequencies, 2, hc.RawPolymatroid())
+hc.connected_information(frequencies, 2, hc.RawPolymatroid())
 ```
 
 Alternatively, it's possible to trigger the marginal distribution constraints with these equivalent lines:
 ```Python
-hc.ConnectedInformation(frequencies, 2)
-hc.ConnectedInformation(counts, 2, hc.Ipfp())
-hc.ConnectedInformation(frequencies, [2], hc.Ipfp())
+hc.connected_information(frequencies, 2)
+hc.connected_information(counts, 2, hc.Ipfp())
+hc.connected_information(frequencies, [2], hc.Ipfp())
 ```
 
 Or similar results with:
 ```Python
-hc.ConnectedInformation(frequencies, 2, hc.Gradient())
-hc.ConnectedInformation(frequencies, 2, hc.Cone())
-hc.ConnectedInformation(frequencies, 2, hc.Cone(hc.SCS()))
-hc.ConnectedInformation(frequencies, 2, hc.Cone(hc.Mosek()))
+hc.connected_information(frequencies, 2, hc.Gradient())
+hc.connected_information(frequencies, 2, hc.Cone())
+hc.connected_information(frequencies, 2, hc.Cone(hc.SCS()))
+hc.connected_information(frequencies, 2, hc.Cone(hc.Mosek()))
 ```
 Where the last one requires a Mosek license. (Academic licence easy to obtain at https://www.mosek.com/products/academic-licenses/).
 
@@ -96,7 +98,7 @@ Other useful parameters for the Polymatroid methods are:
 
 ### Other functions
 
-This interface currently implements a single function to access the entropy maximisation. The function `MaximiseEntropy` works for marginal constraints entropic constraints selecting the appropriate set of constraints using the same rules as `ConnectedInformation` (with the exception that fixed entropy maximisation from a normalised distribution is not allowed). `MaximiseEntropy` takes as an input a probability distribution and the order of marginal distributions to constrain (or the order up to which the marginal entropies must be fixed). The optimiser is an optional parameter that can have further specified parameters (such as the number of iterations, etc.). The function returns the maximum entropy and, in case of fixed marginals, the probability distribution with maximal entropy as an `np.ndarray`. It's possible to pass a precomputed dictionary of entropies to speed up the computation when using entropic constraints.
+This interface currently implements a single function to access the entropy maximisation. The function `maximise_entropy` works for marginal constraints entropic constraints selecting the appropriate set of constraints using the same rules as `connected_information` (with the exception that fixed entropy maximisation from a normalised distribution is not allowed). `maximise_entropy` takes as an input a probability distribution and the order of marginal distributions to constrain (or the order up to which the marginal entropies must be fixed). The optimiser is an optional parameter that can have further specified parameters (such as the number of iterations, etc.). The function returns the maximum entropy and, in case of fixed marginals, the probability distribution with maximal entropy as an `np.ndarray`. It's possible to pass a precomputed dictionary of entropies to speed up the computation when using entropic constraints.
 
 The basic usage is the following:
 ```Python
@@ -104,18 +106,18 @@ import pyHordcoin as hc
 
 probability_distribution = np.array([[[1/16, 3/16], [3/16, 1/16]], [[1/16, 3/16], [3/16, 1/16]]])
 marginal_size = 2
-hc.MaximiseEntropy(probability_distribution, marginal_size)
+hc.maximise_entropy(probability_distribution, marginal_size)
 ```
 Running the code with the optional parameter `method`:
 ```Python
-hc.MaximiseEntropy(probability_distribution, marginal_size, method = hc.Gradient(10, hc.SCS()))
+hc.maximise_entropy(probability_distribution, marginal_size, method = hc.Gradient(10, hc.SCS()))
 ```
 
-The package also contains one utility function: `DistributionEntropy` computes the information entropy of a probability distribution.
+The package also contains one utility function: `distribution_entropy` computes the information entropy of a probability distribution.
 
 Usage of the functions:
 ```Python
-hc.DistributionEntropy(probability_distribution)
+hc.distribution_entropy(probability_distribution)
 ```
 
 #### NOTES
@@ -132,15 +134,16 @@ A = np.random.randint(1000, size=[2, 2, 2]).astype(np.float64)
 A /= A.sum()
 
 marginal_entropies = {}
-for i in range(3):
+for i in range(4):
     for a in combinations(range(3), i):
         m = tuple(set(range(3)) - set(a))
         tmp = A.sum(a)
-        k = tuple(b + 1 for b in m)
-        marginal_entropies[k] = hc.DistributionEntropy(tmp)
+        k = tuple(b + 1 for b in a)
+        marginal_entropies[k] = hc.distribution_entropy(tmp)
 
-hc.ConnectedInformation(
-    A, 2, hc.RawPolymatroid(), precalculated_entropies=marginal_entropies
+hc.connected_information(
+    A, 2, hc.RawPolymatroid(), precalculated_entropies=marginal_entropies,
+    full_output=True,
 )
 
 ```
