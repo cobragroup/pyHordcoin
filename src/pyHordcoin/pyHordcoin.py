@@ -222,6 +222,14 @@ class EResult:
     def entropy(self):
         return self.julia_obj.entropy
 
+    @property
+    def joint_probability(self):
+        pass
+
+    @property
+    def marginal_entropies(self):
+        pass
+
 
 def _format_precalculated_entropies(precalculated_entropies: Dict[tuple[int, ...], float]|EResult, dimension: int):
     if isinstance(precalculated_entropies, EResult):
@@ -243,24 +251,28 @@ def _format_precalculated_entropies(precalculated_entropies: Dict[tuple[int, ...
     return convert(jl.Dict, _precalculated_entropies)
 
 
-class EMEResult(EResult):
+class EMResult(EResult):
     def __init__(
         self, entropy: float | AnyValue, joint_probability: None | np.ndarray = None
     ):
-        if jl.Base.isa(entropy, jl.EMEResult):
+        if jl.Base.isa(entropy, jl.EMResult):
             super().__init__(entropy)
         elif isinstance(entropy, AnyValue):
-            raise ValueError(f"Cannot create EMEResult from {jl.Base.typeof(entropy)}")
+            raise ValueError(f"Cannot create EMResult from {jl.Base.typeof(entropy)}")
         else:
             joint_probability = cast(np.ndarray, joint_probability)
             assert np.issubdtype(joint_probability.dtype, np.floating)
             dimension = len(joint_probability.shape)
             _distribution = convert(jl.Array[jl.Int64, dimension], joint_probability)
-            super().__init__(jl.EMEResult(entropy, _distribution))
+            super().__init__(jl.EMResult(entropy, _distribution))
 
     @property
     def joint_probability(self):
         return np.array(self.julia_obj.joint_probability)
+
+    @property
+    def marginal_entropies(self):
+        raise NotImplementedError("marginal_entropies not implemented for EMResult")
 
 
 class EMFMEResult(EResult):
@@ -290,12 +302,16 @@ class EMFMEResult(EResult):
             for k, v in dict(self.julia_obj.marginal_entropies).items()
         }
 
+    @property
+    def joint_probability(self):
+        raise NotImplementedError("joint_probability not implemented for EMFMEResult")
+
 
 def _convert_EResult(result: AnyValue) -> EResult:
     if jl.Base.isa(result, jl.EMFMEResult):
         return EMFMEResult(result)
-    elif jl.Base.isa(result, jl.EMEResult):
-        return EMEResult(result)
+    elif jl.Base.isa(result, jl.EMResult):
+        return EMResult(result)
     else:
         raise ValueError(f"Cannot convert {jl.Base.typeof(result)} to EResult")
 
@@ -303,8 +319,8 @@ def _convert_EResult(result: AnyValue) -> EResult:
 def _convert_EResultDict(result: Dict[int, AnyValue]) -> Dict[int, EResult]:
     if jl.Base.isa(next(iter(result.values())), jl.EMFMEResult):
         format = EMFMEResult
-    elif jl.Base.isa(next(iter(result.values())), jl.EMEResult):
-        format = EMEResult
+    elif jl.Base.isa(next(iter(result.values())), jl.EMResult):
+        format = EMResult
     else:
         raise ValueError(
             f"Cannot convert {jl.Base.typeof(next(iter(result.values())))} to EResult"
@@ -314,7 +330,7 @@ def _convert_EResultDict(result: Dict[int, AnyValue]) -> Dict[int, EResult]:
 
 
 def connected_information(
-    distribution: np.ndarray | EMEResult,
+    distribution: np.ndarray | EMResult,
     orders: np.ndarray | list[int] | int,
     method: OptimisationMethod | None = None,
     precalculated_entropies: None | dict[tuple[int, ...], float] | EMFMEResult = None,
@@ -340,7 +356,7 @@ def connected_information(
         Computed connected informations.
     """
 
-    if isinstance(distribution, EMEResult):
+    if isinstance(distribution, EMResult):
         distribution = distribution.julia_obj.joint_probability
         dimension = jl.Base.ndims(distribution)
     elif isinstance(distribution, np.ndarray):
