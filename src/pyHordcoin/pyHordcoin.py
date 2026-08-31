@@ -20,8 +20,7 @@ from juliacall import Main as jl, convert, JuliaError, AnyValue
 import numpy as np
 from pathlib import Path
 import os
-from typing import cast, Dict
-
+from typing import cast, Dict, Tuple
 
 def _init_julia_env():
     env = Path(__file__).parent / "julia"
@@ -329,6 +328,40 @@ def _convert_EResultDict(result: Dict[int, AnyValue]) -> Dict[int, EResult]:
     return {k: format(v) for k, v in result.items()}
 
 
+def _get_julia_distribution(
+    distribution: np.ndarray | EMResult,
+) -> Tuple[jl.Array, int, bool]:
+    if isinstance(distribution, EMResult):
+        _distribution = distribution.julia_obj.joint_probability
+        dimension = jl.Base.ndims(distribution)
+        if jl.Base.isa(distribution, jl.Array[jl.AbstractFloat, dimension]):
+            dist_is_float = True
+        elif jl.Base.isa(distribution, jl.Array[jl.Integer, dimension]):
+            dist_is_float = False
+        else:
+            raise ValueError(
+                f"Cannot optimise a distribution with type '{jl.Base.typeof(distribution)}'."
+            )
+    elif isinstance(distribution, np.ndarray):
+        dimension = len(distribution.shape)
+        if np.issubdtype(distribution.dtype, np.floating):
+            _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
+            dist_is_float = True
+        elif np.issubdtype(distribution.dtype, np.integer):
+            _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
+            dist_is_float = False
+        else:
+            raise ValueError(
+                f"Cannot optimise a distribution with dtype '{distribution.dtype}'."
+            )
+    else:
+        raise ValueError(
+            f"Cannot optimise a distribution with type '{type(distribution)}'."
+        )
+
+    return _distribution, dimension, dist_is_float
+
+
 def connected_information(
     distribution: np.ndarray | EMResult,
     orders: np.ndarray | list[int] | int,
@@ -355,37 +388,18 @@ def connected_information(
     Dict{int, float}
         Computed connected informations.
     """
-
-    if isinstance(distribution, EMResult):
-        distribution = distribution.julia_obj.joint_probability
-        dimension = jl.Base.ndims(distribution)
-    elif isinstance(distribution, np.ndarray):
-        dimension = len(distribution.shape)
-        if np.issubdtype(distribution.dtype, np.floating):
-            _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
-        elif np.issubdtype(distribution.dtype, np.integer):
-            _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
-        else:
-            raise ValueError(
-                f"Cannot optimise a distribution with dtype '{distribution.dtype}'."
-            )
-    else:
-        raise ValueError(
-            f"Cannot optimise a distribution with type '{type(distribution)}'."
-        )
+    _distribution, dimension, dist_is_float = _get_julia_distribution(distribution)
 
     if isinstance(method, OptimisationMethod):
-        if isinstance(method, GPolymatroid) and np.issubdtype(
-            distribution.dtype, np.floating
-        ):
+        if isinstance(method, GPolymatroid) and dist_is_float:
             raise ValueError(
                 "Cannot use GPolymatroid method with floating point distribution."
             )
     elif method is None:
-        if np.issubdtype(distribution.dtype, np.integer):
-            method = RawPolymatroid()
-        else:
+        if dist_is_float:
             method = Ipfp()
+        else:
+            method = RawPolymatroid()
     else:
         raise ValueError(f"Unrecognised method of type '{type(method)}'.")
 
@@ -409,7 +423,7 @@ def connected_information(
 
 
 def maximise_entropy(
-    distribution: np.ndarray,
+    distribution: np.ndarray | EMResult,
     order: int,
     method: OptimisationMethod | None = None,
     precalculated_entropies: None | dict[tuple[int, ...], float] | EMFMEResult = None,
@@ -442,28 +456,18 @@ def maximise_entropy(
     NotImplementedError
         If `precalculated_entropies` is passed (not implemented yet).
     """
-    dimension = len(distribution.shape)
-    if np.issubdtype(distribution.dtype, np.floating):
-        _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
-    elif np.issubdtype(distribution.dtype, np.integer):
-        _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
-    else:
-        raise ValueError(
-            f"Cannot optimise a distribution with dtype ('{distribution.dtype}')"
-        )
+    _distribution, dimension, dist_is_float = _get_julia_distribution(distribution)
 
     if isinstance(method, OptimisationMethod):
-        if isinstance(method, GPolymatroid) and np.issubdtype(
-            distribution.dtype, np.floating
-        ):
+        if isinstance(method, GPolymatroid) and dist_is_float:
             raise ValueError(
                 "Cannot use GPolymatroid method with floating point distribution."
             )
     elif method is None:
-        if np.issubdtype(distribution.dtype, np.integer):
-            method = RawPolymatroid()
-        else:
+        if dist_is_float:
             method = Ipfp()
+        else:
+            method = RawPolymatroid()
     else:
         raise ValueError(f"Unrecognise method of type '{type(method)}'.")
 
