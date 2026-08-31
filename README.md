@@ -7,7 +7,7 @@ This is a python interface for the Julia package Hordcoin.jl which provides meth
 Installation is easy, just:
 1. (optional but very advised) create and activate a new virtual environment:
     ```bash
-    pyhton -m venv hordcoin
+    python -m venv hordcoin
     source hordcoin/bin/activate
     ```
 2. change directory to the unpacked repository:
@@ -63,7 +63,7 @@ hc.connected_information(counts, 2)
 ```
 Which will optimise (maximize entropy) constraining the marginal entropies (up to order 2) and should give a result similar to `({2: 0.09310598013744764}, None)`. The second element of the tuple is `None` by default. When calling `connected_information` with the argument `full_output=True` the second element contains a dictionary with information about the maximally entropic distribution at all orders computed. In case of fixed marginal constraints, each element is the optimized distribution at that order. In case of fixed marginal entropies, each element is the entropy vector that maximises the entropy at that order. This information can be passed on to subsequent calls of functions from this package or used for further analysis.
 
-**Warning**: for high dimensional probability distribution using `full_output=True` can consume a lot of memory ($\sim k^D$ for fixed marginal constraints, $k$ states and $D$ dimensions, $\sim2^D$ for fixed marginal entropies).
+**Warning**: for high dimensional probability distribution using `full_output=True` can consume a lot of memory ($\sim k^n$ for fixed marginal constraints, $k$ states and $n$ dimensions, $\sim2^n$ for fixed marginal entropies).
 
 Notably, the following operations all give the same results:
 ```Python
