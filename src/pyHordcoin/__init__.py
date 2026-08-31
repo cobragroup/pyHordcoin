@@ -39,9 +39,9 @@ The following functions are available:
 
 """
 from .pyHordcoin import (
-    ConnectedInformation,
-    MaximiseEntropy,
-    DistributionEntropy,
+    connected_information,
+    maximise_entropy,
+    distribution_entropy,
     RawPolymatroid,
     GPolymatroid,
     Ipfp,
@@ -49,6 +49,9 @@ from .pyHordcoin import (
     Gradient,
     SCS,
     Mosek,
+    EResult,
+    EMResult,
+    EMFMEResult,
 )
 
 # from ._version import __version__

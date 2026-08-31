@@ -16,11 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from juliacall import Main as jl, convert, JuliaError
+from juliacall import Main as jl, convert, JuliaError, AnyValue
 import numpy as np
 from pathlib import Path
 import os
-
+from typing import cast, Dict, Tuple
 
 def _init_julia_env():
     env = Path(__file__).parent / "julia"
@@ -62,13 +62,11 @@ class AbstractOptimizer:
             try:
                 jl.seval(f"using {cls.init_string}")
             except JuliaError:
-                jl.seval(
-                    f"""
+                jl.seval(f"""
                     import Pkg
                     Pkg.add("{cls.init_string}")
                     using {cls.init_string}
-                    """
-                )
+                    """)
             cls.initd = True
 
 
@@ -213,8 +211,34 @@ class Ipfp(MarginalMethod):
         super().__init__()
         self.method = jl.Ipfp(convert(jl.Int64, iterations))
 
+class EResult:
+    julia_obj = None
 
-def _format_precalculated_entropies(precalculated_entropies, dimension):
+    def __init__(self, julia_obj):
+        self.julia_obj = julia_obj
+
+    @property
+    def entropy(self):
+        return self.julia_obj.entropy
+
+    @property
+    def joint_probability(self):
+        pass
+
+    @property
+    def marginal_entropies(self):
+        pass
+
+
+def _format_precalculated_entropies(precalculated_entropies: Dict[tuple[int, ...], float]|EResult, dimension: int):
+    if isinstance(precalculated_entropies, EResult):
+        if jl.Base.isa(precalculated_entropies.julia_obj, jl.EMFMEResult):
+            return precalculated_entropies.julia_obj.marginal_entropies
+        else:
+            raise ValueError(
+                f"Cannot create precalculated_entropies from {jl.Base.typeof(precalculated_entropies.julia_obj)}"
+            )
+
     _precalculated_entropies = {}
     for k, v in precalculated_entropies.items():
         assert len(k) == len(set(k)), f"Repeated dimension index in key ({k})."
@@ -226,12 +250,125 @@ def _format_precalculated_entropies(precalculated_entropies, dimension):
     return convert(jl.Dict, _precalculated_entropies)
 
 
-def ConnectedInformation(
-    distribution: np.ndarray,
+class EMResult(EResult):
+    def __init__(
+        self, entropy: float | AnyValue, joint_probability: None | np.ndarray = None
+    ):
+        if jl.Base.isa(entropy, jl.EMResult):
+            super().__init__(entropy)
+        elif isinstance(entropy, AnyValue):
+            raise ValueError(f"Cannot create EMResult from {jl.Base.typeof(entropy)}")
+        else:
+            joint_probability = cast(np.ndarray, joint_probability)
+            assert np.issubdtype(joint_probability.dtype, np.floating)
+            dimension = len(joint_probability.shape)
+            _distribution = convert(jl.Array[jl.Float64, dimension], joint_probability)
+            super().__init__(jl.EMResult(entropy, _distribution))
+
+    @property
+    def joint_probability(self):
+        return np.array(self.julia_obj.joint_probability)
+
+    @property
+    def marginal_entropies(self):
+        raise NotImplementedError("marginal_entropies not implemented for EMResult")
+
+
+class EMFMEResult(EResult):
+    def __init__(
+        self,
+        entropy: float | AnyValue,
+        marginal_entropies: None | Dict[tuple[int, ...], float] = None,
+    ):
+        if jl.Base.isa(entropy, jl.EMFMEResult):
+            super().__init__(entropy)
+        elif isinstance(entropy, AnyValue):
+            raise ValueError(
+                f"Cannot create EMFMEResult from {jl.Base.typeof(entropy)}"
+            )
+        else:
+            marginal_entropies = cast(Dict[tuple[int, ...], float], marginal_entropies)
+            dimension = max([len(k) for k in marginal_entropies.keys()])
+            _marginal_entropies = _format_precalculated_entropies(
+                marginal_entropies, dimension
+            )
+            super().__init__(jl.EMFMEResult(entropy, _marginal_entropies))
+
+    @property
+    def marginal_entropies(self):
+        return {
+            tuple(k): float(v)
+            for k, v in dict(self.julia_obj.marginal_entropies).items()
+        }
+
+    @property
+    def joint_probability(self):
+        raise NotImplementedError("joint_probability not implemented for EMFMEResult")
+
+
+def _convert_EResult(result: AnyValue) -> EResult:
+    if jl.Base.isa(result, jl.EMFMEResult):
+        return EMFMEResult(result)
+    elif jl.Base.isa(result, jl.EMResult):
+        return EMResult(result)
+    else:
+        raise ValueError(f"Cannot convert {jl.Base.typeof(result)} to EResult")
+
+
+def _convert_EResultDict(result: Dict[int, AnyValue]) -> Dict[int, EResult]:
+    if jl.Base.isa(next(iter(result.values())), jl.EMFMEResult):
+        format = EMFMEResult
+    elif jl.Base.isa(next(iter(result.values())), jl.EMResult):
+        format = EMResult
+    else:
+        raise ValueError(
+            f"Cannot convert {jl.Base.typeof(next(iter(result.values())))} to EResult"
+        )
+
+    return {k: format(v) for k, v in result.items()}
+
+
+def _get_julia_distribution(
+    distribution: np.ndarray | EMResult,
+) -> Tuple[jl.Array, int, bool]:
+    if isinstance(distribution, EMResult):
+        _distribution = distribution.julia_obj.joint_probability
+        dimension = jl.Base.ndims(distribution)
+        if jl.Base.isa(distribution, jl.Array[jl.AbstractFloat, dimension]):
+            dist_is_float = True
+        elif jl.Base.isa(distribution, jl.Array[jl.Integer, dimension]):
+            dist_is_float = False
+        else:
+            raise ValueError(
+                f"Cannot optimise a distribution with type '{jl.Base.typeof(distribution.julia_obj)}'."
+            )
+    elif isinstance(distribution, np.ndarray):
+        dimension = len(distribution.shape)
+        if np.issubdtype(distribution.dtype, np.floating):
+            _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
+            dist_is_float = True
+        elif np.issubdtype(distribution.dtype, np.integer):
+            _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
+            dist_is_float = False
+        else:
+            raise ValueError(
+                f"Cannot optimise a distribution with dtype '{distribution.dtype}'."
+            )
+    else:
+        raise ValueError(
+            f"Cannot optimise a distribution with type '{type(distribution)}'."
+        )
+
+    return _distribution, dimension, dist_is_float
+
+
+def connected_information(
+    distribution: np.ndarray | EMResult,
     orders: np.ndarray | list[int] | int,
     method: OptimisationMethod | None = None,
-    precalculated_entropies: None | dict[tuple[int, ...], float] = None,
-) -> dict[int, float]:
+    precalculated_entropies: None | dict[tuple[int, ...], float] | EMFMEResult = None,
+    full_output: bool = False,
+) -> tuple[dict[int, float], dict[int, EResult] | None]:
     """
     Computes connected information for given joined probability and multiple `orders`. Optional argument `method`
     specifies which method to use for optimisation. Default is `Cone()`. Preferred when computing multiple connected
@@ -251,39 +388,26 @@ def ConnectedInformation(
     Dict{int, float}
         Computed connected informations.
     """
-    dimension = len(distribution.shape)
-    if isinstance(method, MarginalMethod) or (
-        isinstance(method, RawPolymatroid)
-        and np.issubdtype(distribution.dtype, np.floating)
-    ):
-        _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
-    elif isinstance(method, EntropyMethod):
-        _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
+    _distribution, dimension, dist_is_float = _get_julia_distribution(distribution)
+
+    if isinstance(method, OptimisationMethod):
+        if isinstance(method, GPolymatroid) and dist_is_float:
+            raise ValueError(
+                "Cannot use GPolymatroid method with floating point distribution."
+            )
     elif method is None:
-        if np.issubdtype(distribution.dtype, np.integer):
-            _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
-            method = RawPolymatroid()
-        elif (
-            np.issubdtype(distribution.dtype, np.floating)
-            and not np.iscomplex(distribution).any()
-        ):
-            _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
+        if dist_is_float:
             method = Ipfp()
         else:
-            raise ValueError(
-                f"Cannot infer type of optimisation from distribution dtype ('{distribution.dtype}')"
-            )
+            method = RawPolymatroid()
     else:
-        raise ValueError(f"Unrecognise method of type '{type(method)}'")
+        raise ValueError(f"Unrecognised method of type '{type(method)}'.")
 
+    extras = {"full_output": convert(jl.Bool, full_output)}
     if precalculated_entropies is not None and isinstance(method, EntropyMethod):
-        extras = {
-            "precalculated_entropies": _format_precalculated_entropies(
-                precalculated_entropies, dimension
-            )
-        }
-    else:
-        extras = {}
+        extras["precalculated_entropies"] = _format_precalculated_entropies(
+            precalculated_entropies, dimension
+        )
 
     if isinstance(orders, (np.ndarray, list)):
         _orders = convert(jl.Vector, np.array(orders).astype(int))
@@ -292,20 +416,18 @@ def ConnectedInformation(
 
     CI = jl.connected_information(_distribution, _orders, method.method, **extras)
 
-    if isinstance(method, EntropyMethod):
-        return dict(CI[0])
-    elif isinstance(orders, int):
-        return {orders: float(CI)}
+    if full_output:
+        return dict(CI[0]), _convert_EResultDict(CI[1])
     else:
-        return dict(CI)
+        return dict(CI[0]), None
 
 
-def MaximiseEntropy(
-    distribution: np.ndarray,
+def maximise_entropy(
+    distribution: np.ndarray | EMResult,
     order: int,
     method: OptimisationMethod | None = None,
-    precalculated_entropies: None | dict[tuple[int, ...], float] = None,
-) -> tuple[float, np.ndarray | None]:
+    precalculated_entropies: None | dict[tuple[int, ...], float] | EMFMEResult = None,
+) -> EResult:
     """
     Computes the maximum entropy of a distribution (not a probability distribution) with fixed entropy of marginals of size `order`.
 
@@ -334,56 +456,34 @@ def MaximiseEntropy(
     NotImplementedError
         If `precalculated_entropies` is passed (not implemented yet).
     """
-    dimension = len(distribution.shape)
-    if isinstance(method, EntropyMethod):
-        _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
-    elif isinstance(method, MarginalMethod):
-        _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
+    _distribution, dimension, dist_is_float = _get_julia_distribution(distribution)
+
+    if isinstance(method, OptimisationMethod):
+        if isinstance(method, GPolymatroid) and dist_is_float:
+            raise ValueError(
+                "Cannot use GPolymatroid method with floating point distribution."
+            )
     elif method is None:
-        if np.issubdtype(distribution.dtype, np.integer):
-            _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
-            method = RawPolymatroid()
-        elif (
-            np.issubdtype(distribution.dtype, np.floating)
-            and not np.iscomplex(distribution).any()
-        ):
-            _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
+        if dist_is_float:
             method = Ipfp()
         else:
-            raise ValueError(
-                f"Cannot infer type of optimisation from distribution dtype ('{distribution.dtype}')"
-            )
+            method = RawPolymatroid()
     else:
-        raise ValueError(f"Unrecognise method of type '{type(method)}'")
+        raise ValueError(f"Unrecognise method of type '{type(method)}'.")
 
     _order = convert(jl.Int64, order)
 
+    extras = {}
     if precalculated_entropies is not None and isinstance(method, EntropyMethod):
-        extras = {
-            "precalculated_entropies": _format_precalculated_entropies(
-                precalculated_entropies, dimension
-            )
-        }
-    else:
-        extras = {}
-
-    if isinstance(method, EntropyMethod):
-        return (
-            jl.max_ent_fixed_ent_unnormalized(
-                _distribution, _order, method.method, **extras
-            ),
-            None,
+        extras["precalculated_entropies"] = _format_precalculated_entropies(
+            precalculated_entropies, dimension
         )
-    elif isinstance(method, MarginalMethod):
-        ME = jl.maximise_entropy(
-            _distribution,
-            _order,
-            method=method.method,
-        )
-        return ME.entropy, np.array(ME.joined_probability)
+
+    max_ent = jl.maximise_entropy(_distribution, _order, method.method, **extras)
+    return _convert_EResult(max_ent)
 
 
-def DistributionEntropy(distribution: np.ndarray) -> float:
+def distribution_entropy(distribution: np.ndarray) -> float:
     """
     Compute the information entropy of a discrete probability distribution.
 
