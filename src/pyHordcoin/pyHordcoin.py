@@ -314,10 +314,10 @@ def _convert_EResultDict(result: Dict[int, AnyValue]) -> Dict[int, EResult]:
 
 
 def connected_information(
-    distribution: np.ndarray,
+    distribution: np.ndarray | EMEResult,
     orders: np.ndarray | list[int] | int,
     method: OptimisationMethod | None = None,
-    precalculated_entropies: None | dict[tuple[int, ...], float] = None,
+    precalculated_entropies: None | dict[tuple[int, ...], float] | EMFMEResult = None,
     full_output: bool = False,
 ) -> tuple[dict[int, float], dict[int, EResult] | None]:
     """
@@ -340,14 +340,22 @@ def connected_information(
         Computed connected informations.
     """
 
-    dimension = len(distribution.shape)
-    if np.issubdtype(distribution.dtype, np.floating):
-        _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
-    elif np.issubdtype(distribution.dtype, np.integer):
-        _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
+    if isinstance(distribution, EMEResult):
+        distribution = distribution.julia_obj.joint_probability
+        dimension = jl.Base.ndims(distribution)
+    elif isinstance(distribution, np.ndarray):
+        dimension = len(distribution.shape)
+        if np.issubdtype(distribution.dtype, np.floating):
+            _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
+        elif np.issubdtype(distribution.dtype, np.integer):
+            _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
+        else:
+            raise ValueError(
+                f"Cannot optimise a distribution with dtype '{distribution.dtype}'."
+            )
     else:
         raise ValueError(
-            f"Cannot optimise a distribution with dtype ('{distribution.dtype}')"
+            f"Cannot optimise a distribution with type '{type(distribution)}'."
         )
 
     if isinstance(method, OptimisationMethod):
@@ -355,7 +363,7 @@ def connected_information(
             distribution.dtype, np.floating
         ):
             raise ValueError(
-                "Cannot use GPolymatroid method with floating point distribution"
+                "Cannot use GPolymatroid method with floating point distribution."
             )
     elif method is None:
         if np.issubdtype(distribution.dtype, np.integer):
@@ -363,7 +371,7 @@ def connected_information(
         else:
             method = Ipfp()
     else:
-        raise ValueError(f"Unrecognised method of type '{type(method)}'")
+        raise ValueError(f"Unrecognised method of type '{type(method)}'.")
 
     extras = {"full_output": convert(jl.Bool, full_output)}
     if precalculated_entropies is not None and isinstance(method, EntropyMethod):
