@@ -49,6 +49,9 @@ from .pyHordcoin import (
     Gradient,
     SCS,
     Mosek,
+    EResult,
+    EMResult,
+    EMFMEResult,
 )
 
 # from ._version import __version__
