@@ -291,6 +291,15 @@ class EMFMEResult(EResult):
         }
 
 
+def _convert_EResult(result: AnyValue) -> EResult:
+    if jl.Base.isa(result, jl.EMFMEResult):
+        return EMFMEResult(result)
+    elif jl.Base.isa(result, jl.EMEResult):
+        return EMEResult(result)
+    else:
+        raise ValueError(f"Cannot convert {jl.Base.typeof(result)} to EResult")
+
+
 def _convert_EResultDict(result: Dict[int, AnyValue]) -> Dict[int, EResult]:
     if jl.Base.isa(next(iter(result.values())), jl.EMFMEResult):
         format = EMFMEResult
@@ -379,8 +388,8 @@ def maximise_entropy(
     distribution: np.ndarray,
     order: int,
     method: OptimisationMethod | None = None,
-    precalculated_entropies: None | dict[tuple[int, ...], float] = None,
-) -> tuple[float, np.ndarray | None]:
+    precalculated_entropies: None | dict[tuple[int, ...], float] | EMFMEResult = None,
+) -> EResult:
     """
     Computes the maximum entropy of a distribution (not a probability distribution) with fixed entropy of marginals of size `order`.
 
@@ -410,52 +419,40 @@ def maximise_entropy(
         If `precalculated_entropies` is passed (not implemented yet).
     """
     dimension = len(distribution.shape)
-    if isinstance(method, EntropyMethod):
-        _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
-    elif isinstance(method, MarginalMethod):
+    if np.issubdtype(distribution.dtype, np.floating):
         _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
+    elif np.issubdtype(distribution.dtype, np.integer):
+        _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
+    else:
+        raise ValueError(
+            f"Cannot optimise a distribution with dtype ('{distribution.dtype}')"
+        )
+
+    if isinstance(method, OptimisationMethod):
+        if isinstance(method, GPolymatroid) and np.issubdtype(
+            distribution.dtype, np.floating
+        ):
+            raise ValueError(
+                "Cannot use GPolymatroid method with floating point distribution."
+            )
     elif method is None:
         if np.issubdtype(distribution.dtype, np.integer):
-            _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
             method = RawPolymatroid()
-        elif (
-            np.issubdtype(distribution.dtype, np.floating)
-            and not np.iscomplex(distribution).any()
-        ):
-            _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
-            method = Ipfp()
         else:
-            raise ValueError(
-                f"Cannot infer type of optimisation from distribution dtype ('{distribution.dtype}')"
-            )
+            method = Ipfp()
     else:
-        raise ValueError(f"Unrecognise method of type '{type(method)}'")
+        raise ValueError(f"Unrecognise method of type '{type(method)}'.")
 
     _order = convert(jl.Int64, order)
 
+    extras = {}
     if precalculated_entropies is not None and isinstance(method, EntropyMethod):
-        extras = {
-            "precalculated_entropies": _format_precalculated_entropies(
-                precalculated_entropies, dimension
-            )
-        }
-    else:
-        extras = {}
+        extras["precalculated_entropies"] = _format_precalculated_entropies(
+            precalculated_entropies, dimension
+        )
 
-    if isinstance(method, EntropyMethod):
-        return (
-            jl.max_ent_fixed_ent_unnormalized(
-                _distribution, _order, method.method, **extras
-            ),
-            None,
-        )
-    elif isinstance(method, MarginalMethod):
-        max_ent = jl.maximise_entropy(
-            _distribution,
-            _order,
-            method=method.method,
-        )
-        return max_ent.entropy, np.array(max_ent.joined_probability)
+    max_ent = jl.maximise_entropy(_distribution, _order, method.method, **extras)
+    return _convert_EResult(max_ent)
 
 
 def distribution_entropy(distribution: np.ndarray) -> float:
