@@ -262,7 +262,7 @@ class EMResult(EResult):
             joint_probability = cast(np.ndarray, joint_probability)
             assert np.issubdtype(joint_probability.dtype, np.floating)
             dimension = len(joint_probability.shape)
-            _distribution = convert(jl.Array[jl.Int64, dimension], joint_probability)
+            _distribution = convert(jl.Array[jl.Float64, dimension], joint_probability)
             super().__init__(jl.EMResult(entropy, _distribution))
 
     @property
