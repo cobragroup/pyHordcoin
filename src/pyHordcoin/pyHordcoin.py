@@ -16,11 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from juliacall import Main as jl, convert, JuliaError
+from juliacall import Main as jl, convert, JuliaError, AnyValue
 import numpy as np
 from pathlib import Path
 import os
-from typing import Literal
+from typing import cast, Dict
+
 
 def _init_julia_env():
     env = Path(__file__).parent / "julia"
@@ -211,8 +212,26 @@ class Ipfp(MarginalMethod):
         super().__init__()
         self.method = jl.Ipfp(convert(jl.Int64, iterations))
 
+class EResult:
+    julia_obj = None
 
-def _format_precalculated_entropies(precalculated_entropies, dimension):
+    def __init__(self, julia_obj):
+        self.julia_obj = julia_obj
+
+    @property
+    def entropy(self):
+        return self.julia_obj.entropy
+
+
+def _format_precalculated_entropies(precalculated_entropies: Dict[tuple[int, ...], float]|EResult, dimension: int):
+    if isinstance(precalculated_entropies, EResult):
+        if jl.Base.isa(precalculated_entropies, jl.EMFMEResult):
+            return precalculated_entropies.julia_obj.marginal_entropies
+        else:
+            raise ValueError(
+                f"Cannot create precalculated_entropies from {jl.Base.typeof(precalculated_entropies)}"
+            )
+
     _precalculated_entropies = {}
     for k, v in precalculated_entropies.items():
         assert len(k) == len(set(k)), f"Repeated dimension index in key ({k})."
@@ -224,6 +243,65 @@ def _format_precalculated_entropies(precalculated_entropies, dimension):
     return convert(jl.Dict, _precalculated_entropies)
 
 
+class EMEResult(EResult):
+    def __init__(
+        self, entropy: float | AnyValue, joint_probability: None | np.ndarray = None
+    ):
+        if jl.Base.isa(entropy, jl.EMEResult):
+            super().__init__(entropy)
+        elif isinstance(entropy, AnyValue):
+            raise ValueError(f"Cannot create EMEResult from {jl.Base.typeof(entropy)}")
+        else:
+            joint_probability = cast(np.ndarray, joint_probability)
+            assert np.issubdtype(joint_probability.dtype, np.floating)
+            dimension = len(joint_probability.shape)
+            _distribution = convert(jl.Array[jl.Int64, dimension], joint_probability)
+            super().__init__(jl.EMEResult(entropy, _distribution))
+
+    @property
+    def joint_probability(self):
+        return np.array(self.julia_obj.joint_probability)
+
+
+class EMFMEResult(EResult):
+    def __init__(
+        self,
+        entropy: float | AnyValue,
+        marginal_entropies: None | Dict[tuple[int, ...], float] = None,
+    ):
+        if jl.Base.isa(entropy, jl.EMFMEResult):
+            super().__init__(entropy)
+        elif isinstance(entropy, AnyValue):
+            raise ValueError(
+                f"Cannot create EMFMEResult from {jl.Base.typeof(entropy)}"
+            )
+        else:
+            marginal_entropies = cast(Dict[tuple[int, ...], float], marginal_entropies)
+            dimension = max([len(k) for k in marginal_entropies.keys()])
+            _marginal_entropies = _format_precalculated_entropies(
+                marginal_entropies, dimension
+            )
+            super().__init__(jl.EMFMEResult(entropy, _marginal_entropies))
+
+    @property
+    def marginal_entropies(self):
+        return {
+            tuple(k): float(v)
+            for k, v in dict(self.julia_obj.marginal_entropies).items()
+        }
+
+
+def _convert_EResultDict(result: Dict[int, AnyValue]) -> Dict[int, EResult]:
+    if jl.Base.isa(next(iter(result.values())), jl.EMFMEResult):
+        format = EMFMEResult
+    elif jl.Base.isa(next(iter(result.values())), jl.EMEResult):
+        format = EMEResult
+    else:
+        raise ValueError(
+            f"Cannot convert {jl.Base.typeof(next(iter(result.values())))} to EResult"
+        )
+
+    return {k: format(v) for k, v in result.items()}
 def ConnectedInformation(
     distribution: np.ndarray,
     orders: np.ndarray | list[int] | int,
