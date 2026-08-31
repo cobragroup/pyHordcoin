@@ -232,11 +232,11 @@ class EResult:
 
 def _format_precalculated_entropies(precalculated_entropies: Dict[tuple[int, ...], float]|EResult, dimension: int):
     if isinstance(precalculated_entropies, EResult):
-        if jl.Base.isa(precalculated_entropies, jl.EMFMEResult):
+        if jl.Base.isa(precalculated_entropies.julia_obj, jl.EMFMEResult):
             return precalculated_entropies.julia_obj.marginal_entropies
         else:
             raise ValueError(
-                f"Cannot create precalculated_entropies from {jl.Base.typeof(precalculated_entropies)}"
+                f"Cannot create precalculated_entropies from {jl.Base.typeof(precalculated_entropies.julia_obj)}"
             )
 
     _precalculated_entropies = {}
@@ -340,7 +340,7 @@ def _get_julia_distribution(
             dist_is_float = False
         else:
             raise ValueError(
-                f"Cannot optimise a distribution with type '{jl.Base.typeof(distribution)}'."
+                f"Cannot optimise a distribution with type '{jl.Base.typeof(distribution.julia_obj)}'."
             )
     elif isinstance(distribution, np.ndarray):
         dimension = len(distribution.shape)
