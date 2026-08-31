@@ -302,7 +302,9 @@ def _convert_EResultDict(result: Dict[int, AnyValue]) -> Dict[int, EResult]:
         )
 
     return {k: format(v) for k, v in result.items()}
-def ConnectedInformation(
+
+
+def connected_information(
     distribution: np.ndarray,
     orders: np.ndarray | list[int] | int,
     method: OptimisationMethod | None = None,
@@ -377,7 +379,7 @@ def ConnectedInformation(
         return dict(CI)
 
 
-def MaximiseEntropy(
+def maximise_entropy(
     distribution: np.ndarray,
     order: int,
     method: OptimisationMethod | None = None,
@@ -452,15 +454,15 @@ def MaximiseEntropy(
             None,
         )
     elif isinstance(method, MarginalMethod):
-        ME = jl.maximise_entropy(
+        max_ent = jl.maximise_entropy(
             _distribution,
             _order,
             method=method.method,
         )
-        return ME.entropy, np.array(ME.joined_probability)
+        return max_ent.entropy, np.array(max_ent.joined_probability)
 
 
-def DistributionEntropy(distribution: np.ndarray) -> float:
+def distribution_entropy(distribution: np.ndarray) -> float:
     """
     Compute the information entropy of a discrete probability distribution.
 
