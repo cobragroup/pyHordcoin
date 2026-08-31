@@ -96,19 +96,6 @@ class Mosek(AbstractOptimizer):
         self.Optimizer = jl.MosekTools.Optimizer()
 
 
-class DirectOptimiser(AbstractOptimizer):
-    def __str__(self) -> str:
-        return self.init_string.lower()
-
-
-class Ipopt(DirectOptimiser):
-    init_string = "Ipopt"
-
-
-class MadNLP(DirectOptimiser):
-    init_string = "MadNLP"
-
-
 class OptimisationMethod:
     method = None
 
@@ -165,21 +152,6 @@ class GPolymatroid(EntropyMethod):
         self.method = jl.GPolymatroid(
             zhang_yeung, optimiser.Optimizer, convert(jl.Float64, tolerance)
         )
-
-
-class Direct(EntropyMethod):
-    def __init__(
-        self, optimiser: DirectOptimiser | Literal["ipopt", "madnlp"] = "ipopt"
-    ) -> None:
-        """Initialises the direct, Non-Linear Programming
-
-        Parameters
-        ----------
-        optimiser : AbstractOptimizer | str, optional
-            _description_, by default "ipopt"
-        """
-        super().__init__()
-        self.method = jl.Direct(str(optimiser))
 
 
 class MarginalMethod(OptimisationMethod):
@@ -277,10 +249,6 @@ def ConnectedInformation(
     Dict{int, float}
         Computed connected informations.
     """
-    if isinstance(method, Direct):
-        raise NotImplementedError(
-            "Connected information for Direct method not implemented yet on the Julia side."
-        )
 
     dimension = len(distribution.shape)
     if isinstance(method, MarginalMethod) or (

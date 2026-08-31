@@ -49,9 +49,6 @@ from .pyHordcoin import (
     Gradient,
     SCS,
     Mosek,
-    Direct,
-    Ipopt,
-    MadNLP,
 )
 
 # from ._version import __version__
