@@ -403,9 +403,9 @@ def connected_information(
     CI = jl.connected_information(_distribution, _orders, method.method, **extras)
 
     if full_output:
-        return dict(CI[0]), None
-    else:
         return dict(CI[0]), _convert_EResultDict(CI[1])
+    else:
+        return dict(CI[0]), None
 
 
 def maximise_entropy(
