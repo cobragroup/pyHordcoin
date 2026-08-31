@@ -309,7 +309,8 @@ def connected_information(
     orders: np.ndarray | list[int] | int,
     method: OptimisationMethod | None = None,
     precalculated_entropies: None | dict[tuple[int, ...], float] = None,
-) -> dict[int, float]:
+    full_output: bool = False,
+) -> tuple[dict[int, float], dict[int, EResult] | None]:
     """
     Computes connected information for given joined probability and multiple `orders`. Optional argument `method`
     specifies which method to use for optimisation. Default is `Cone()`. Preferred when computing multiple connected
@@ -331,38 +332,35 @@ def connected_information(
     """
 
     dimension = len(distribution.shape)
-    if isinstance(method, MarginalMethod) or (
-        isinstance(method, RawPolymatroid)
-        and np.issubdtype(distribution.dtype, np.floating)
-    ):
+    if np.issubdtype(distribution.dtype, np.floating):
         _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
-    elif isinstance(method, EntropyMethod):
+    elif np.issubdtype(distribution.dtype, np.integer):
         _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
+    else:
+        raise ValueError(
+            f"Cannot optimise a distribution with dtype ('{distribution.dtype}')"
+        )
+
+    if isinstance(method, OptimisationMethod):
+        if isinstance(method, GPolymatroid) and np.issubdtype(
+            distribution.dtype, np.floating
+        ):
+            raise ValueError(
+                "Cannot use GPolymatroid method with floating point distribution"
+            )
     elif method is None:
         if np.issubdtype(distribution.dtype, np.integer):
-            _distribution = convert(jl.Array[jl.Int64, dimension], distribution)
             method = RawPolymatroid()
-        elif (
-            np.issubdtype(distribution.dtype, np.floating)
-            and not np.iscomplex(distribution).any()
-        ):
-            _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
-            method = Ipfp()
         else:
-            raise ValueError(
-                f"Cannot infer type of optimisation from distribution dtype ('{distribution.dtype}')"
-            )
+            method = Ipfp()
     else:
-        raise ValueError(f"Unrecognise method of type '{type(method)}'")
+        raise ValueError(f"Unrecognised method of type '{type(method)}'")
 
+    extras = {"full_output": convert(jl.Bool, full_output)}
     if precalculated_entropies is not None and isinstance(method, EntropyMethod):
-        extras = {
-            "precalculated_entropies": _format_precalculated_entropies(
-                precalculated_entropies, dimension
-            )
-        }
-    else:
-        extras = {}
+        extras["precalculated_entropies"] = _format_precalculated_entropies(
+            precalculated_entropies, dimension
+        )
 
     if isinstance(orders, (np.ndarray, list)):
         _orders = convert(jl.Vector, np.array(orders).astype(int))
@@ -371,12 +369,10 @@ def connected_information(
 
     CI = jl.connected_information(_distribution, _orders, method.method, **extras)
 
-    if isinstance(method, EntropyMethod):
-        return dict(CI[0])
-    elif isinstance(orders, int):
-        return {orders: float(CI)}
+    if full_output:
+        return dict(CI[0]), None
     else:
-        return dict(CI)
+        return dict(CI[0]), _convert_EResultDict(CI[1])
 
 
 def maximise_entropy(
