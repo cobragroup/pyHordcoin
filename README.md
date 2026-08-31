@@ -137,7 +137,7 @@ marginal_entropies = {}
 for i in range(4):
     for a in combinations(range(3), i):
         m = tuple(set(range(3)) - set(a))
-        tmp = A.sum(a)
+        tmp = A.sum(m)
         k = tuple(b + 1 for b in a)
         marginal_entropies[k] = hc.distribution_entropy(tmp)
 
