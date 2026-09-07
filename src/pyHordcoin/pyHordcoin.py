@@ -265,6 +265,9 @@ class EMResult(EResult):
             _distribution = convert(jl.Array[jl.Float64, dimension], joint_probability)
             super().__init__(jl.EMResult(entropy, _distribution))
 
+    def __repr__(self):
+        return f"EMResult(entropy={self.entropy}, joint_probability={repr(self.joint_probability)})"
+
     @property
     def joint_probability(self):
         return np.array(self.julia_obj.joint_probability)
@@ -293,6 +296,9 @@ class EMFMEResult(EResult):
                 marginal_entropies, dimension
             )
             super().__init__(jl.EMFMEResult(entropy, _marginal_entropies))
+
+    def __repr__(self):
+        return f"EMFMEResult(entropy={self.entropy}, marginal_entropies={self.marginal_entropies})"
 
     @property
     def marginal_entropies(self):

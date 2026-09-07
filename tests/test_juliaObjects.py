@@ -59,3 +59,16 @@ def test_EMFMEResult():
     assert EMFMEResult.marginal_entropies == marginal_entropies
     with pytest.raises(NotImplementedError):
         EMFMEResult.joint_probability
+
+
+def test_EResult_repr():
+    A = np.random.randint(1000, size=[2, 2, 2])
+    B = A.astype(np.float64) / A.sum()
+    from numpy import array
+
+    EMResult = hc.EMResult
+    EMFMEResult = hc.EMFMEResult
+    myEMResult = hc.maximise_entropy(B, 2)
+    myEMFMEResult = hc.maximise_entropy(A, 2)
+    assert isinstance(eval(repr(myEMResult)), EMResult)
+    assert isinstance(eval(repr(myEMFMEResult)), EMFMEResult)
