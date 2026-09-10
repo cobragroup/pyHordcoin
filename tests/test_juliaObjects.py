@@ -72,3 +72,14 @@ def test_EResult_repr():
     myEMFMEResult = hc.maximise_entropy(A, 2)
     assert isinstance(eval(repr(myEMResult)), EMResult)
     assert isinstance(eval(repr(myEMFMEResult)), EMFMEResult)
+
+
+def test_repr():
+    from pyHordcoin import RawPolymatroid, GPolymatroid, Ipfp, Cone, Gradient, SCS
+
+    assert isinstance(eval(repr(RawPolymatroid(True))), RawPolymatroid)
+    assert isinstance(eval(repr(GPolymatroid(tolerance=0.01))), GPolymatroid)
+    assert isinstance(eval(repr(Ipfp(42))), Ipfp)
+    assert isinstance(eval(repr(Cone())), Cone)
+    assert isinstance(eval(repr(Gradient(42))), Gradient)
+    assert isinstance(eval(repr(SCS())), SCS)

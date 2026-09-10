@@ -82,6 +82,9 @@ class SCS(AbstractOptimizer):
         super().__init__()
         self.Optimizer = jl.SCS.Optimizer()
 
+    def __repr__(self):
+        return "SCS()"
+
 
 class Mosek(AbstractOptimizer):
     init_string = "MosekTools"
@@ -94,6 +97,9 @@ class Mosek(AbstractOptimizer):
         """
         super().__init__()
         self.Optimizer = jl.MosekTools.Optimizer()
+
+    def __repr__(self):
+        return "Mosek()"
 
 
 class OptimisationMethod:
@@ -124,9 +130,15 @@ class RawPolymatroid(EntropyMethod):
             Amount of MLE bias correction to apply (default 0).
         """
         super().__init__()
+        self.zhang_yeung = zhang_yeung
+        self.optimiser = optimiser
+        self.mle_correction = mle_correction
         self.method = jl.RawPolymatroid(
             convert(jl.Float64, mle_correction), zhang_yeung, optimiser.Optimizer
         )
+
+    def __repr__(self):
+        return f"RawPolymatroid(zhang_yeung={self.zhang_yeung}, optimiser={self.optimiser}, mle_correction={self.mle_correction})"
 
 
 class GPolymatroid(EntropyMethod):
@@ -149,9 +161,15 @@ class GPolymatroid(EntropyMethod):
             Relative tolerance for constraints (default 0).
         """
         super().__init__()
+        self.zhang_yeung = zhang_yeung
+        self.optimiser = optimiser
+        self.tolerance = tolerance
         self.method = jl.GPolymatroid(
             zhang_yeung, optimiser.Optimizer, convert(jl.Float64, tolerance)
         )
+
+    def __repr__(self):
+        return f"GPolymatroid(zhang_yeung={self.zhang_yeung}, optimiser={self.optimiser}, tolerance={self.tolerance})"
 
 
 class MarginalMethod(OptimisationMethod):
@@ -172,7 +190,11 @@ class Cone(MarginalMethod):
             Optimiser to use (default SCS).
         """
         super().__init__()
+        self.optimiser = optimiser
         self.method = jl.Cone(optimiser.Optimizer)
+
+    def __repr__(self):
+        return f"Cone(optimiser={self.optimiser})"
 
 
 class Gradient(MarginalMethod):
@@ -192,13 +214,19 @@ class Gradient(MarginalMethod):
             Optimiser to use (default SCS).
         """
         super().__init__()
+        self.iterations = iterations
+        self.optimiser = optimiser
         self.method = jl.Gradient(convert(jl.Int64, iterations), optimiser.Optimizer)
+
+    def __repr__(self):
+        return f"Gradient(iterations={self.iterations}, optimiser={self.optimiser})"
 
 
 class Ipfp(MarginalMethod):
+
     def __init__(
         self,
-        iterations: int = 10,
+        iterations: int = 1000,
     ) -> None:
         """
         Initialises the Ipfp optimisation method for fixed marginal distribution optimisation.
@@ -206,10 +234,16 @@ class Ipfp(MarginalMethod):
         Parameters
         ----------
         iterations : int, optional
-            Number of iterations to run (default 10).
+            Maximum number of iterations to run (default 1000).
         """
+
         super().__init__()
+        self.iterations = iterations
         self.method = jl.Ipfp(convert(jl.Int64, iterations))
+
+    def __repr__(self):
+        return f"Ipfp(iterations={self.iterations})"
+
 
 class EResult:
     julia_obj = None
