@@ -84,3 +84,12 @@ def test_connected_information_discrete_precalculated_zero_indexed():
             marginal_entropies[a] = 0.1
     with pytest.raises(AssertionError):
         hc.connected_information(A, 2, precalculated_entropies=marginal_entropies)
+
+
+def test_default_order():
+    A = np.random.randint(1000, size=[2, 2, 2])
+    ci = hc.connected_information(A)
+    assert isinstance(ci, tuple)
+    assert isinstance(ci[0], dict)
+    assert len(ci[0]) == 2
+    assert ci[1] is None

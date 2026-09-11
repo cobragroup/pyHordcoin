@@ -404,7 +404,7 @@ def _get_julia_distribution(
 
 def connected_information(
     distribution: np.ndarray | EMResult,
-    orders: np.ndarray | list[int] | int,
+    orders: np.ndarray | list[int] | int | None = None,
     method: OptimisationMethod | None = None,
     precalculated_entropies: None | dict[tuple[int, ...], float] | EMFMEResult = None,
     full_output: bool = False,
@@ -449,7 +449,9 @@ def connected_information(
             precalculated_entropies, dimension
         )
 
-    if isinstance(orders, (np.ndarray, list)):
+    if orders is None:
+        _orders = convert(jl.Vector, np.arange(2, dimension + 1))
+    elif isinstance(orders, (np.ndarray, list)):
         _orders = convert(jl.Vector, np.array(orders).astype(int))
     else:
         _orders = convert(jl.Int64, orders)
