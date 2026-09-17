@@ -552,3 +552,48 @@ def distribution_entropy(distribution: np.ndarray) -> float:
     dimension = len(distribution.shape)
     _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
     return jl.distribution_entropy(_distribution)
+
+
+def precompute_entropies(
+    distribution: np.ndarray, method: OptimisationMethod | None = None
+) -> Dict[tuple[int, ...], float]:
+    """
+    Compute the entropies of all the marginals of a distribution.
+
+    Parameters
+    ----------
+    distribution : np.ndarray
+        Discrete probability distribution (not necessarily normalized).
+    method : OptimisationMethod | None, optional
+        Method to use for optimisation (default None).
+
+    Returns
+    -------
+    EFMEResult
+        Object containing the entropies of the marginals.
+
+    Raises
+    ------
+    ValueError
+        If `method` is not recognised or Grassberger correction is required
+        for normalised distributions.
+    """
+    _distribution, dimension, dist_is_float = _get_julia_distribution(distribution)
+
+    if isinstance(method, OptimisationMethod):
+        if isinstance(method, GPolymatroid) and dist_is_float:
+            raise ValueError(
+                "Cannot use GPolymatroid method with floating point distribution."
+            )
+    elif method is None:
+        if dist_is_float:
+            method = RawPolymatroid()
+        else:
+            method = GPolymatroid()
+    else:
+        raise ValueError(f"Unrecognise method of type '{type(method)}'.")
+
+    return {
+        tuple(k): float(v)
+        for k, v in dict(jl.precompute_entropies(_distribution, method.method)).items()
+    }

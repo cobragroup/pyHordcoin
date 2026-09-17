@@ -30,6 +30,11 @@ The following functions are available:
 - `maximise_entropy`: maximises the entropy of a discrete distribution given a
   fixed marginal distribution or entropy up to a chosen order.
 - `distribution_entropy`: computes the entropy of a discrete distribution.
+- `precompute_entropies`: precomputes the entropies of the marginals of a
+  distribution.
+
+The following classes are available:
+
 - `RawPolymatroid`: implements the raw polymatroid approximation.
 - `GPolymatroid`: implements the Grassberger-corrected polymatroid approximation.
 - `Ipfp`: implements the iterative proportional fitting procedure.
@@ -46,6 +51,7 @@ from .pyHordcoin import (
     connected_information,
     maximise_entropy,
     distribution_entropy,
+    precompute_entropies,
     RawPolymatroid,
     GPolymatroid,
     Ipfp,
