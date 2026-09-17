@@ -5,16 +5,22 @@ from itertools import combinations
 
 def test_juliaRawPolymatroid():
     assert hc.RawPolymatroid()
+    assert hc.RawPolymatroid(True)
+    assert hc.RawPolymatroid(True, mle_correction=True)
 
 
 def test_juliaGPolymatroid():
     assert hc.GPolymatroid()
+    assert hc.GPolymatroid(True)
+    assert hc.GPolymatroid(tolerance=0.01)
 
 
-def test_juliaOptimizers():
+def test_juliaDistributionConstrained():
     assert hc.Cone()
     assert hc.Ipfp()
+    assert hc.Ipfp(10)
     assert hc.Gradient()
+    assert hc.Gradient(100)
 
 
 def test_EMResult():
@@ -38,8 +44,10 @@ def test_EResult():
     assert hc.EResult(EMResult.julia_obj)
     EResult = hc.EResult(EMResult.julia_obj)
     assert EResult.entropy == entropy
-    assert EResult.joint_probability is None
-    assert EResult.marginal_entropies is None
+    with pytest.raises(NotImplementedError):
+        EResult.joint_probability
+    with pytest.raises(NotImplementedError):
+        EResult.marginal_entropies
 
 
 def test_EMFMEResult():

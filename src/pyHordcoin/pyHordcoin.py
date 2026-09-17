@@ -254,16 +254,16 @@ class EResult:
         self.julia_obj = julia_obj
 
     @property
-    def entropy(self):
+    def entropy(self) -> float:
         return self.julia_obj.entropy
 
     @property
-    def joint_probability(self):
-        pass
+    def joint_probability(self) -> np.ndarray:
+        raise NotImplementedError("joint_probability not implemented for EResult")
 
     @property
-    def marginal_entropies(self):
-        pass
+    def marginal_entropies(self) -> dict[tuple[int, ...], float]:
+        raise NotImplementedError("marginal_entropies not implemented for EResult")
 
 
 def _format_precalculated_entropies(precalculated_entropies: Dict[tuple[int, ...], float]|EResult, dimension: int):
@@ -305,7 +305,7 @@ class EMResult(EResult):
         return f"EMResult(entropy={self.entropy}, joint_probability={repr(self.joint_probability)})"
 
     @property
-    def joint_probability(self):
+    def joint_probability(self) -> np.ndarray:
         return np.array(self.julia_obj.joint_probability)
 
     @property
@@ -337,7 +337,7 @@ class EMFMEResult(EResult):
         return f"EMFMEResult(entropy={self.entropy}, marginal_entropies={self.marginal_entropies})"
 
     @property
-    def marginal_entropies(self):
+    def marginal_entropies(self) -> dict[tuple[int, ...], float]:
         return {
             tuple(k): float(v)
             for k, v in dict(self.julia_obj.marginal_entropies).items()
