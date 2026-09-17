@@ -111,11 +111,12 @@ class EntropyMethod(OptimisationMethod):
 
 
 class RawPolymatroid(EntropyMethod):
+
     def __init__(
         self,
         zhang_yeung: bool = False,
         optimiser: AbstractOptimizer = SCS(),
-        mle_correction: float = 0,
+        mle_correction: bool = False,
     ):
         """
         Initialises the RawPolymatroid optimisation method for fixed marginal entropy optimisation.
@@ -126,15 +127,16 @@ class RawPolymatroid(EntropyMethod):
             Whether to include Zhang-Yeung inequalities (default False).
         optimiser : AbstractOptimizer, optional
             Optimiser to use (default SCS).
-        mle_correction : float, optional
-            Amount of MLE bias correction to apply (default 0).
+        mle_correction : bool, optional
+            Apply MLE bias correction (default False).
         """
+
         super().__init__()
         self.zhang_yeung = zhang_yeung
         self.optimiser = optimiser
         self.mle_correction = mle_correction
         self.method = jl.RawPolymatroid(
-            convert(jl.Float64, mle_correction), zhang_yeung, optimiser.Optimizer
+            mle_correction, zhang_yeung, optimiser.Optimizer
         )
 
     def __repr__(self):
