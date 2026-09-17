@@ -17,18 +17,19 @@
 """
 pyHordcoin
 
-Python interface to the Hordcoin Julia package for Connected Information.
+Python interface to the Hordcoin.jl Julia package for Connected Information.
 
-This package provides a Python interface to the Hordcoin Julia package.
+This package provides a Python interface to the Hordcoin.jl Julia package.
 The package allows the computation of the Connected Information, and the
 maximisation of the entropy of discrete distributions given a fixed marginal
 distribution or entropy up to a chosen order.
 
 The following functions are available:
 
-- `ConnectedInformation`: computes the Connected Information.
-- `MaximiseEntropy`: maximises the entropy of a discrete distribution given a
+- `connected_information`: computes the Connected Information.
+- `maximise_entropy`: maximises the entropy of a discrete distribution given a
   fixed marginal distribution or entropy up to a chosen order.
+- `distribution_entropy`: computes the entropy of a discrete distribution.
 - `RawPolymatroid`: implements the raw polymatroid approximation.
 - `GPolymatroid`: implements the Grassberger-corrected polymatroid approximation.
 - `Ipfp`: implements the iterative proportional fitting procedure.
@@ -36,8 +37,11 @@ The following functions are available:
 - `Gradient`: implements the gradient descent optimiser.
 - `SCS`: implements the sequential coordinate-wise search optimiser.
 - `Mosek`: implements the Mosek optimiser.
-
+- `EResult`: represents the result of a Connected Information computation.
+- `EMResult`: represents the result of an entropy maximisation with marginal distribution constraints computation.
+- `EMFMEResult`: represents the result of an entropy maximisation with fixed marginal entropies computation.
 """
+
 from .pyHordcoin import (
     connected_information,
     maximise_entropy,
