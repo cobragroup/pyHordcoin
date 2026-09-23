@@ -1,11 +1,9 @@
 import os
-from pathlib import Path
+import shutil, platformdirs
 
-juliaPath = Path(__file__).parent.parent / "src" / "pyHordcoin" / "julia"
+juliaPath = platformdirs.user_cache_path("pyHordcoin") / "julia"
 if os.path.isdir(juliaPath):
-    for file in juliaPath.iterdir():
-        os.unlink(file)
-    os.rmdir(juliaPath)
+    shutil.rmtree(juliaPath)
 
 import pyHordcoin as hc
 

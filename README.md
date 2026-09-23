@@ -27,6 +27,8 @@ Installation is easy, just:
 ## Running
 The first time you import the package it will take some time to install the Julia dependencies (and possibly Julia itself), it might take a few minutes. From the second import on it's much faster, although the import of Julia still takes some time. This will be repaid during the maximisation of the entropies.
 
+In case you face a `segmentation fault` during the first import see the instructions [below](#compilation-issues).
+
 ## Usage
 This package offers an interface to Hordcoin.jl which implements methods that maximize the Shannon entropy of a probability distribution with marginal distribution or entropic constraints and compute the Connected Information.
 
@@ -151,13 +153,36 @@ hc.connected_information(
 
 ## Recommendations
 
-The most efficient method when computing with fixed marginal distributions is the `Cone` method with `Mosek` optimiser. This requires a license to use the MOSEK solver. Without the license, it is possible to use `SCS` instead, but it is less accurate and slower.
+When computing with fixed entropies and a small number of samples, the recommended method is the `GPolymatroid` with `Mosek`. When the distribution is sampled enough, you can use `RawPolymatroid` to estimate the entropy with the plug-in estimator. More information can be found in the paper.
 
-Without a MOSEK license, use the `Ipfp` method (default). It is accurate and not the slowest. It can also be parametrized with the number of iterations, but it is not necessary. The default value is 10.
+Without a MOSEK license, use the `Ipfp` method (default). It is accurate and fast. It can also be parametrized with the maximum number of iterations, but it is not necessary. The default value is 1000, but it will typically converge in just a few.
+
+When computing with fixed marginal distributions you might want to consider the `Cone` method with `Mosek` optimiser. This requires a license to use the MOSEK solver. Without the license, it is possible to use `SCS` instead, but it is less accurate and slower.
 
 The `Gradient` method is the slowest and may fail during execution due to limitations of Second Order Cone constraints in solvers.
 
-When computing with fixed entropies and a small number of samples, the recommended method is the `GPolymatroid` with `Mosek`. When the distribution is sampled enough, you can use `RawPolymatroid` to estimate the entropy with the plug-in estimator. More information can be found in the paper.
+## Compilation issues
+If during the first import you experience `segmentation fault`, this is most likely due to issues during the precompilation of Julia packages (and the disgraceful way Juliacall handles them).
+
+Try the following steps:
+1. Locate the Julia executable that Juliacall is using and the path to the Julia project of Hordcoin
+    - If you Python crashes before any output, try `ipython` (`pip install ipython`), you should see a lot of output including lines like:
+        ```
+        [juliapkg] Using Julia 1.13.0 at /home/path/to/your/.venv/julia_env/pyjuliapkg/install/bin/julia
+        Activating project at `~/path/to/your/.venv/lib/python3.XX/site-packages/pyHordcoin/julia`
+        ```
+2. Assuming the Julia executable is at `some/path/julia` and the project at `other/path/site-packages/pyHordcoin/julia`, run in a terminal:
+    ```bash
+    $ some/path/julia
+    julia> using Pkg
+    julia> Pkg.activate("other/path/site-packages/pyHordcoin/julia")
+    julia> Pkg.instantiate()
+    ```
+3. This time you should see the errors without segfault. Follow the instructions there, often the fix for failing package `ProblematicPackage` is:
+    ```
+    julia> Pkg.build("ProblematicPackage")
+    ```
+4. Now all the packages should be precompiled, when importing pyHordcoin they'll be already available and no issues should follow.
 
 # Reading the documentation
 If I didn't upload it somewhere else, from the pyHordcoin folder *in the cloned repository* run:
@@ -173,7 +198,7 @@ mkdocs serve
 And opening your browser at: http://127.0.0.1:8000/. Notice however that there isn't anything you can't find already in the sources.
 
 
-## How to cite
+# How to cite
 
 If you use this code for a scientific publication, please cite:
 

@@ -18,22 +18,29 @@
 
 from juliacall import Main as jl, convert, JuliaError, AnyValue
 import numpy as np
-from pathlib import Path
-import os
+import os, sys
+import platformdirs, shutil
+from importlib.resources import as_file, files
 from typing import cast, Dict, Tuple
 
+_ENV_VERSION = "1"
 def _init_julia_env():
-    env = Path(__file__).parent / "julia"
+    env = platformdirs.user_cache_path("pyHordcoin") / "julia" / _ENV_VERSION
     if not os.path.isdir(env):
-        os.mkdir(env)
-        with open(env / "Project.toml", "w") as f:
-            f.write('[deps]\nHordcoin = "5495aede-444c-4b33-a3d8-b01a3ffd757a"\n')
+        env.mkdir(parents=True)
+        source = files("pyHordcoin").joinpath("julia")
+        for filename in ("Project.toml", "Manifest.toml"):
+            if not (env / filename).exists():
+                with as_file(source / filename) as f:
+                    shutil.copy2(f, env)
 
     jl.seval("using Pkg")
-    jl.seval('Pkg.activate("{}")'.format(str(env)))
+    jl.seval(f'Pkg.activate(raw"{env}")')
     jl.seval("Pkg.instantiate()")
     jl.seval("using Hordcoin")
     print("Julia environment initialized.")
+    sys.stderr.flush()
+    sys.stdout.flush()
 
 
 _init_julia_env()
@@ -82,6 +89,9 @@ class SCS(AbstractOptimizer):
         super().__init__()
         self.Optimizer = jl.SCS.Optimizer()
 
+    def __repr__(self):
+        return "SCS()"
+
 
 class Mosek(AbstractOptimizer):
     init_string = "MosekTools"
@@ -95,6 +105,9 @@ class Mosek(AbstractOptimizer):
         super().__init__()
         self.Optimizer = jl.MosekTools.Optimizer()
 
+    def __repr__(self):
+        return "Mosek()"
+
 
 class OptimisationMethod:
     method = None
@@ -105,11 +118,12 @@ class EntropyMethod(OptimisationMethod):
 
 
 class RawPolymatroid(EntropyMethod):
+
     def __init__(
         self,
         zhang_yeung: bool = False,
         optimiser: AbstractOptimizer = SCS(),
-        mle_correction: float = 0,
+        mle_correction: bool = False,
     ):
         """
         Initialises the RawPolymatroid optimisation method for fixed marginal entropy optimisation.
@@ -120,21 +134,40 @@ class RawPolymatroid(EntropyMethod):
             Whether to include Zhang-Yeung inequalities (default False).
         optimiser : AbstractOptimizer, optional
             Optimiser to use (default SCS).
-        mle_correction : float, optional
-            Amount of MLE bias correction to apply (default 0).
+        mle_correction : bool, optional
+            Apply MLE bias correction (default False).
         """
+
         super().__init__()
+        self.zhang_yeung = zhang_yeung
+        self.optimiser = optimiser
+        self.mle_correction = mle_correction
         self.method = jl.RawPolymatroid(
-            convert(jl.Float64, mle_correction), zhang_yeung, optimiser.Optimizer
+            mle_correction, zhang_yeung, optimiser.Optimizer
         )
+
+    def __repr__(self):
+        return f"RawPolymatroid(zhang_yeung={self.zhang_yeung}, optimiser={self.optimiser}, mle_correction={self.mle_correction})"
+
+
+class GCache:
+    def __init__(self, init=2, max_len=50000):
+        self.init = init
+        self.max_len = max_len
+        self.cache = jl.GCache(init_len=init, max_len=max_len)
+
+    def __repr__(self):
+        return f"GCache(init={self.init}, max_len={self.max_len})"
 
 
 class GPolymatroid(EntropyMethod):
+
     def __init__(
         self,
         zhang_yeung: bool = False,
         optimiser: AbstractOptimizer = SCS(),
         tolerance: float = 0,
+        cache: GCache = GCache(),
     ):
         """
         Initialises the Grassberger-corrected Polymatroid optimisation method for fixed marginal entropy optimisation.
@@ -149,9 +182,19 @@ class GPolymatroid(EntropyMethod):
             Relative tolerance for constraints (default 0).
         """
         super().__init__()
+        self.zhang_yeung = zhang_yeung
+        self.optimiser = optimiser
+        self.tolerance = tolerance
+        self.cache = cache
         self.method = jl.GPolymatroid(
-            zhang_yeung, optimiser.Optimizer, convert(jl.Float64, tolerance)
+            zhang_yeung,
+            optimiser.Optimizer,
+            convert(jl.Float64, tolerance),
+            cache.cache,
         )
+
+    def __repr__(self):
+        return f"GPolymatroid(zhang_yeung={self.zhang_yeung}, optimiser={self.optimiser}, tolerance={self.tolerance})"
 
 
 class MarginalMethod(OptimisationMethod):
@@ -172,7 +215,11 @@ class Cone(MarginalMethod):
             Optimiser to use (default SCS).
         """
         super().__init__()
+        self.optimiser = optimiser
         self.method = jl.Cone(optimiser.Optimizer)
+
+    def __repr__(self):
+        return f"Cone(optimiser={self.optimiser})"
 
 
 class Gradient(MarginalMethod):
@@ -192,13 +239,19 @@ class Gradient(MarginalMethod):
             Optimiser to use (default SCS).
         """
         super().__init__()
+        self.iterations = iterations
+        self.optimiser = optimiser
         self.method = jl.Gradient(convert(jl.Int64, iterations), optimiser.Optimizer)
+
+    def __repr__(self):
+        return f"Gradient(iterations={self.iterations}, optimiser={self.optimiser})"
 
 
 class Ipfp(MarginalMethod):
+
     def __init__(
         self,
-        iterations: int = 10,
+        iterations: int = 1000,
     ) -> None:
         """
         Initialises the Ipfp optimisation method for fixed marginal distribution optimisation.
@@ -206,10 +259,16 @@ class Ipfp(MarginalMethod):
         Parameters
         ----------
         iterations : int, optional
-            Number of iterations to run (default 10).
+            Maximum number of iterations to run (default 1000).
         """
+
         super().__init__()
+        self.iterations = iterations
         self.method = jl.Ipfp(convert(jl.Int64, iterations))
+
+    def __repr__(self):
+        return f"Ipfp(iterations={self.iterations})"
+
 
 class EResult:
     julia_obj = None
@@ -218,16 +277,16 @@ class EResult:
         self.julia_obj = julia_obj
 
     @property
-    def entropy(self):
+    def entropy(self) -> float:
         return self.julia_obj.entropy
 
     @property
-    def joint_probability(self):
-        pass
+    def joint_probability(self) -> np.ndarray:
+        raise NotImplementedError("joint_probability not implemented for EResult")
 
     @property
-    def marginal_entropies(self):
-        pass
+    def marginal_entropies(self) -> dict[tuple[int, ...], float]:
+        raise NotImplementedError("marginal_entropies not implemented for EResult")
 
 
 def _format_precalculated_entropies(precalculated_entropies: Dict[tuple[int, ...], float]|EResult, dimension: int):
@@ -265,8 +324,11 @@ class EMResult(EResult):
             _distribution = convert(jl.Array[jl.Float64, dimension], joint_probability)
             super().__init__(jl.EMResult(entropy, _distribution))
 
+    def __repr__(self):
+        return f"EMResult(entropy={self.entropy}, joint_probability={repr(self.joint_probability)})"
+
     @property
-    def joint_probability(self):
+    def joint_probability(self) -> np.ndarray:
         return np.array(self.julia_obj.joint_probability)
 
     @property
@@ -294,8 +356,11 @@ class EMFMEResult(EResult):
             )
             super().__init__(jl.EMFMEResult(entropy, _marginal_entropies))
 
+    def __repr__(self):
+        return f"EMFMEResult(entropy={self.entropy}, marginal_entropies={self.marginal_entropies})"
+
     @property
-    def marginal_entropies(self):
+    def marginal_entropies(self) -> dict[tuple[int, ...], float]:
         return {
             tuple(k): float(v)
             for k, v in dict(self.julia_obj.marginal_entropies).items()
@@ -364,7 +429,7 @@ def _get_julia_distribution(
 
 def connected_information(
     distribution: np.ndarray | EMResult,
-    orders: np.ndarray | list[int] | int,
+    orders: np.ndarray | list[int] | int | None = None,
     method: OptimisationMethod | None = None,
     precalculated_entropies: None | dict[tuple[int, ...], float] | EMFMEResult = None,
     full_output: bool = False,
@@ -409,7 +474,9 @@ def connected_information(
             precalculated_entropies, dimension
         )
 
-    if isinstance(orders, (np.ndarray, list)):
+    if orders is None:
+        _orders = convert(jl.Vector, np.arange(2, dimension + 1))
+    elif isinstance(orders, (np.ndarray, list)):
         _orders = convert(jl.Vector, np.array(orders).astype(int))
     else:
         _orders = convert(jl.Int64, orders)
@@ -510,3 +577,48 @@ def distribution_entropy(distribution: np.ndarray) -> float:
     dimension = len(distribution.shape)
     _distribution = convert(jl.Array[jl.Float64, dimension], distribution)
     return jl.distribution_entropy(_distribution)
+
+
+def precompute_entropies(
+    distribution: np.ndarray, method: OptimisationMethod | None = None
+) -> Dict[tuple[int, ...], float]:
+    """
+    Compute the entropies of all the marginals of a distribution.
+
+    Parameters
+    ----------
+    distribution : np.ndarray
+        Discrete probability distribution (not necessarily normalized).
+    method : OptimisationMethod | None, optional
+        Method to use for optimisation (default None).
+
+    Returns
+    -------
+    EFMEResult
+        Object containing the entropies of the marginals.
+
+    Raises
+    ------
+    ValueError
+        If `method` is not recognised or Grassberger correction is required
+        for normalised distributions.
+    """
+    _distribution, dimension, dist_is_float = _get_julia_distribution(distribution)
+
+    if isinstance(method, OptimisationMethod):
+        if isinstance(method, GPolymatroid) and dist_is_float:
+            raise ValueError(
+                "Cannot use GPolymatroid method with floating point distribution."
+            )
+    elif method is None:
+        if dist_is_float:
+            method = RawPolymatroid()
+        else:
+            method = GPolymatroid()
+    else:
+        raise ValueError(f"Unrecognise method of type '{type(method)}'.")
+
+    return {
+        tuple(k): float(v)
+        for k, v in dict(jl.precompute_entropies(_distribution, method.method)).items()
+    }
