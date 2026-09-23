@@ -1,0 +1,4 @@
+[deps]
+Hordcoin = "5495aede-444c-4b33-a3d8-b01a3ffd757a"
+MosekTools = "1ec41992-ff65-5c91-ac43-2df89e9693a4"
+SCS = "c946c3f1-0d1f-5ce8-9dea-7daa1f7e2d13"

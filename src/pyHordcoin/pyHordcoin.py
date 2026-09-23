@@ -18,22 +18,29 @@
 
 from juliacall import Main as jl, convert, JuliaError, AnyValue
 import numpy as np
-from pathlib import Path
-import os
+import os, sys
+import platformdirs, shutil
+from importlib.resources import as_file, files
 from typing import cast, Dict, Tuple
 
+_ENV_VERSION = "1"
 def _init_julia_env():
-    env = Path(__file__).parent / "julia"
+    env = platformdirs.user_cache_path("pyHordcoin") / "julia" / _ENV_VERSION
     if not os.path.isdir(env):
-        os.mkdir(env)
-        with open(env / "Project.toml", "w") as f:
-            f.write('[deps]\nHordcoin = "5495aede-444c-4b33-a3d8-b01a3ffd757a"\n')
+        env.mkdir(parents=True)
+        source = files("pyHordcoin").joinpath("julia")
+        for filename in ("Project.toml", "Manifest.toml"):
+            if not (env / filename).exists():
+                with as_file(source / filename) as f:
+                    shutil.copy2(f, env)
 
     jl.seval("using Pkg")
-    jl.seval('Pkg.activate("{}")'.format(str(env)))
+    jl.seval(f'Pkg.activate(raw"{env}")')
     jl.seval("Pkg.instantiate()")
     jl.seval("using Hordcoin")
     print("Julia environment initialized.")
+    sys.stderr.flush()
+    sys.stdout.flush()
 
 
 _init_julia_env()

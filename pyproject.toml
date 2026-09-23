@@ -29,6 +29,8 @@ dependencies = [
 Homepage = "https://github.com/cobragroup/pyHordcoin"
 Issues = "https://github.com/cobragroup/pyHordcoin/issues"
 
+[tool.setuptools.package-data]
+pyHordcoin = ["julia/Project.toml", "julia/Manifest.toml"]
 
 [project.optional-dependencies]
 dev = [
