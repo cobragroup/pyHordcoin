@@ -72,7 +72,7 @@ Notably, the following operations all give the same results:
 hc.connected_information(counts, [2])
 hc.connected_information(counts, 2, hc.RawPolymatroid())
 
-hc.frequencies = counts.astype(float) ./ sum(counts)
+frequencies = counts.astype(float) / np.sum(counts)
 hc.connected_information(frequencies, 2, hc.RawPolymatroid())
 ```
 
