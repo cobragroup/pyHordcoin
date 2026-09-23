@@ -150,12 +150,24 @@ class RawPolymatroid(EntropyMethod):
         return f"RawPolymatroid(zhang_yeung={self.zhang_yeung}, optimiser={self.optimiser}, mle_correction={self.mle_correction})"
 
 
+class GCache:
+    def __init__(self, init=2, max_len=50000):
+        self.init = init
+        self.max_len = max_len
+        self.cache = jl.GCache(init_len=init, max_len=max_len)
+
+    def __repr__(self):
+        return f"GCache(init={self.init}, max_len={self.max_len})"
+
+
 class GPolymatroid(EntropyMethod):
+
     def __init__(
         self,
         zhang_yeung: bool = False,
         optimiser: AbstractOptimizer = SCS(),
         tolerance: float = 0,
+        cache: GCache = GCache(),
     ):
         """
         Initialises the Grassberger-corrected Polymatroid optimisation method for fixed marginal entropy optimisation.
@@ -173,8 +185,12 @@ class GPolymatroid(EntropyMethod):
         self.zhang_yeung = zhang_yeung
         self.optimiser = optimiser
         self.tolerance = tolerance
+        self.cache = cache
         self.method = jl.GPolymatroid(
-            zhang_yeung, optimiser.Optimizer, convert(jl.Float64, tolerance)
+            zhang_yeung,
+            optimiser.Optimizer,
+            convert(jl.Float64, tolerance),
+            cache.cache,
         )
 
     def __repr__(self):
